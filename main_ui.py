@@ -7,6 +7,9 @@ Windows 11 风格软件启动台 - UI重构版
 import os
 import sys
 import json
+import concurrent.futures
+import logging
+from logging.handlers import RotatingFileHandler
 
 # 高DPI设置 - 在导入任何GUI库之前设置
 if sys.platform == "win32":
@@ -14,7 +17,7 @@ if sys.platform == "win32":
         import ctypes
         ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
     except Exception as e:
-        print(f"[DEBUG] DPI setting failed: {e}")
+        logger.debug(f"DPI setting failed: {e}")
 
 from pathlib import Path
 import tkinter as tk
@@ -27,19 +30,19 @@ from PIL import Image, ImageTk
 try:
     from tkinterdnd2 import TkinterDnD, DND_FILES
     HAS_DND = True
-    print("[DEBUG] tkinterdnd2 imported successfully")
+    logger.debug("tkinterdnd2 imported successfully")
 except ImportError as e:
     HAS_DND = False
-    print(f"[DEBUG] tkinterdnd2 import failed: {e}")
+    logger.debug(f"tkinterdnd2 import failed: {e}")
 
 # 尝试导入全局快捷键库
 try:
     from pynput import keyboard
     HAS_HOTKEY = True
-    print("[DEBUG] pynput imported successfully")
+    logger.debug("pynput imported successfully")
 except ImportError as e:
     HAS_HOTKEY = False
-    print(f"[DEBUG] pynput import failed: {e}")
+    logger.debug(f"pynput import failed: {e}")
 
 # ============================================================
 # 全局配置
@@ -59,6 +62,39 @@ ctk.set_default_color_theme("blue")
 APP_NAME = "Win11Launcher"
 CONFIG_FILE = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME, "launcher_config.json")
 ICON_CACHE_DIR = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME, "icon_cache")
+
+
+# ============================================================
+# 日志系统
+# ============================================================
+LOG_DIR = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME)
+LOG_FILE = os.path.join(LOG_DIR, 'launcher.log')
+
+def _setup_logger():
+    """配置日志系统：文件输出 + 轮转，打包后仍可记录"""
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+    except Exception:
+        pass
+    logger = logging.getLogger(APP_NAME)
+    logger.setLevel(logging.DEBUG)
+    # 避免重复添加handler
+    if logger.handlers:
+        return logger
+    handler = RotatingFileHandler(
+        LOG_FILE,
+        maxBytes=2 * 1024 * 1024,  # 2MB
+        backupCount=3,
+        encoding='utf-8'
+    )
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    logger.addHandler(handler)
+    return logger
+
+logger = _setup_logger()
 
 def _ensure_config_dir():
     """确保配置目录存在"""
@@ -253,7 +289,7 @@ def get_app_info(file_path: str) -> dict:
                 icon_path = target_path
                 
         except Exception as e:
-            print(f"[DEBUG] Failed to parse lnk: {e}")
+            logger.debug(f"Failed to parse lnk: {e}")
             # 如果无法解析，尝试从开始菜单搜索
             result = _parse_shell_link_from_start_menu(name)
             if result:
@@ -311,7 +347,7 @@ def _load_icon_from_cache(app_path: str) -> 'Image.Image | None':
         img = img.convert('RGBA')
         return img
     except Exception as e:
-        print(f"[ICON CACHE] 加载缓存失败: {e}")
+        logger.debug(f"加载缓存失败: {e}")
         return None
 
 def _save_icon_to_cache(app_path: str, icon_img: 'Image.Image'):
@@ -437,7 +473,7 @@ def _prepare_icon_for_display(img: Image.Image, target_size: int = 48) -> Image.
         return img
 
     except Exception as e:
-        print(f"[ICON DEBUG] 图标预处理失败: {e}")
+        logger.debug(f"图标预处理失败: {e}")
         return img
 
 
@@ -450,7 +486,7 @@ def _extract_icon_method1(app_path: str, icon_path: str, size: int):
         
         # 检查路径
         if not os.path.exists(app_path):
-            print(f"[ICON DEBUG] 方法1: 路径不存在")
+            logger.debug(f"方法1: 路径不存在")
             return None
         
         path = icon_path if (icon_path and os.path.exists(icon_path)) else app_path
@@ -463,10 +499,10 @@ def _extract_icon_method1(app_path: str, icon_path: str, size: int):
         result = user32.ExtractIconExW(path, 0, ctypes.byref(hicon), None, 1)
         
         if result == 0 or not hicon.value:
-            print(f"[ICON DEBUG] 方法1: ExtractIconEx失败")
+            logger.debug(f"方法1: ExtractIconEx失败")
             return None
         
-        print(f"[ICON DEBUG] 方法1: 获取图标句柄成功: {hicon.value}")
+        logger.debug(f"方法1: 获取图标句柄成功: {hicon.value}")
         
         # 创建位图
         hdc = user32.GetDC(0)
@@ -497,10 +533,10 @@ def _extract_icon_method1(app_path: str, icon_path: str, size: int):
         bmp_info.biSize = ctypes.sizeof(BITMAPINFOHEADER)
         gdi32.GetDIBits(hdcMem, hbmp, 0, size, None, ctypes.byref(bmp_info), 0)
         
-        print(f"[ICON DEBUG] 方法1: 位图信息 - 宽:{bmp_info.biWidth}, 高:{bmp_info.biHeight}, 位深:{bmp_info.biBitCount}")
+        logger.debug(f"方法1: 位图信息 - 宽:{bmp_info.biWidth}, 高:{bmp_info.biHeight}, 位深:{bmp_info.biBitCount}")
         
         if bmp_info.biBitCount == 0:
-            print(f"[ICON DEBUG] 方法1: 位深为0，失败")
+            logger.debug(f"方法1: 位深为0，失败")
             return None
         
         # 计算缓冲区大小
@@ -525,7 +561,7 @@ def _extract_icon_method1(app_path: str, icon_path: str, size: int):
         return img
         
     except Exception as e:
-        print(f"[ICON DEBUG] 方法1失败: {e}")
+        logger.debug(f"方法1失败: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -547,10 +583,10 @@ def _extract_icon_method2(app_path: str, icon_path: str, size: int):
         # 使用 win32gui.ExtractIcon
         hicon = win32gui.ExtractIcon(0, path, 0)
         if not hicon:
-            print(f"[ICON DEBUG] 方法2: ExtractIcon失败")
+            logger.debug(f"方法2: ExtractIcon失败")
             return None
         
-        print(f"[ICON DEBUG] 方法2: 获取图标句柄成功: {hicon}")
+        logger.debug(f"方法2: 获取图标句柄成功: {hicon}")
         
         # 创建DC和位图
         hdc = win32gui.GetDC(0)
@@ -605,7 +641,7 @@ def _extract_icon_method2(app_path: str, icon_path: str, size: int):
         return img
         
     except Exception as e:
-        print(f"[ICON DEBUG] 方法2失败: {e}")
+        logger.debug(f"方法2失败: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -637,10 +673,10 @@ def _extract_icon_method3(app_path: str, icon_path: str, size: int):
         )
         
         if not hicon:
-            print(f"[ICON DEBUG] 方法3: LoadImage失败")
+            logger.debug(f"方法3: LoadImage失败")
             return None
         
-        print(f"[ICON DEBUG] 方法3: LoadImage成功: {hicon}")
+        logger.debug(f"方法3: LoadImage成功: {hicon}")
         
         # 创建DC和位图
         hdc = win32gui.GetDC(0)
@@ -691,7 +727,7 @@ def _extract_icon_method3(app_path: str, icon_path: str, size: int):
         return img
         
     except Exception as e:
-        print(f"[ICON DEBUG] 方法3失败: {e}")
+        logger.debug(f"方法3失败: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -825,7 +861,7 @@ def _extract_icon_from_lnk(lnk_path: str, size: int):
         return img
         
     except Exception as e:
-        print(f"[ICON DEBUG] LNK提取失败: {e}")
+        logger.debug(f"LNK提取失败: {e}")
         return None
 
 
@@ -840,7 +876,7 @@ def _extract_icon_shell32(file_path: str, size: int):
         import win32con
 
         if not os.path.exists(file_path):
-            print(f"[ICON DEBUG] Shell32: 文件不存在")
+            logger.debug(f"Shell32: 文件不存在")
             return None
 
         SHGFI_ICON = 0x000000100
@@ -867,11 +903,11 @@ def _extract_icon_shell32(file_path: str, size: int):
         )
 
         if result == 0 or not shfi.hIcon:
-            print(f"[ICON DEBUG] Shell32: 获取图标句柄失败")
+            logger.debug(f"Shell32: 获取图标句柄失败")
             return None
 
         hicon = shfi.hIcon
-        print(f"[ICON DEBUG] Shell32: 获取图标句柄成功")
+        logger.debug(f"Shell32: 获取图标句柄成功")
 
         dc = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
         mem_dc = dc.CreateCompatibleDC()
@@ -900,7 +936,7 @@ def _extract_icon_shell32(file_path: str, size: int):
         return img
 
     except Exception as e:
-        print(f"[ICON DEBUG] Shell32提取失败: {e}")
+        logger.debug(f"Shell32提取失败: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -1007,7 +1043,7 @@ def _extract_icon_from_registry(file_path: str, size: int):
         return img
         
     except Exception as e:
-        print(f"[ICON DEBUG] 注册表提取失败: {e}")
+        logger.debug(f"注册表提取失败: {e}")
         return None
 
 # ============================================================
@@ -1046,11 +1082,11 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
     def __init__(self):
         if HAS_DND:
-            print("[DEBUG] Using TkinterDnD.Tk")
+            logger.debug("Using TkinterDnD.Tk")
             TkinterDnD.Tk.__init__(self)
             self._use_tkdnd = True
         else:
-            print("[DEBUG] Using ctk.CTk (no DnD)")
+            logger.debug("Using ctk.CTk (no DnD)")
             super().__init__()
             self._use_tkdnd = False
 
@@ -1086,6 +1122,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 缓存：按分类保存AppGridItem列表
         self.category_items_cache = {cat: [] for cat in self.categories}
 
+        # 图标提取线程池（限制并发数，避免大量线程抢CPU）
+        self.icon_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=4,
+            thread_name_prefix="icon-loader"
+        )
+
         # 初始化UI
         self._setup_ui()
 
@@ -1118,6 +1160,20 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 初始化完成后设置标志
         self.after(500, self._mark_initialized)
 
+        # 窗口关闭时清理线程池
+        self._original_destroy = self.destroy
+        self.destroy = self._on_destroy
+
+    def _on_destroy(self):
+        """窗口关闭前清理资源"""
+        try:
+            if hasattr(self, 'icon_executor'):
+                self.icon_executor.shutdown(wait=False, cancel_futures=True)
+        except Exception:
+            pass
+        self._original_destroy()
+
+
     def _setup_glass_effect(self):
         """设置Windows 11亚克力磨砂效果和窗口圆角"""
         try:
@@ -1129,10 +1185,10 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             if sys.platform == "win32":
                 self._setup_acrylic_effect()
             
-            print("[DEBUG] 亚克力磨砂效果已启用")
+            logger.debug("亚克力磨砂效果已启用")
             
         except Exception as e:
-            print(f"[DEBUG] 亚克力磨砂效果设置失败: {e}")
+            logger.debug(f"亚克力磨砂效果设置失败: {e}")
     
     def _setup_acrylic_effect(self):
         """使用Windows DWM API设置亚克力效果（不影响原生标题栏按钮）"""
@@ -1161,13 +1217,13 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             result = DwmSetWindowAttribute(hwnd, 38, ctypes.byref(backdrop_type), ctypes.sizeof(backdrop_type))
 
             if result == 0:
-                print("[DEBUG] 亚克力效果设置成功 (SYSTEMBACKDROP_TYPE)")
+                logger.debug("亚克力效果设置成功 (SYSTEMBACKDROP_TYPE)")
             else:
-                print("[DEBUG] 亚克力效果设置失败，尝试备用方案")
+                logger.debug("亚克力效果设置失败，尝试备用方案")
                 self._setup_dwm_blur()
 
         except Exception as e:
-            print(f"[DEBUG] DWM亚克力效果失败: {e}")
+            logger.debug(f"DWM亚克力效果失败: {e}")
             pass
     
     def _setup_dwm_blur(self):
@@ -1193,10 +1249,10 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             
             # 设置边框颜色为透明
             DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ctypes.pointer(color), ctypes.sizeof(color))
-            print("[DEBUG] DWM模糊备用方案已应用")
+            logger.debug("DWM模糊备用方案已应用")
             
         except Exception as e:
-            print(f"[DEBUG] DWM模糊备用方案失败: {e}")
+            logger.debug(f"DWM模糊备用方案失败: {e}")
 
     def _setup_titlebar_color(self):
         """设置标题栏颜色（支持深色和浅色主题）"""
@@ -1237,20 +1293,20 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     
                     if result == 0:
                         is_dark_mode = (value.value == 0)
-                        print(f"[DEBUG] 注册表检测主题: {'深色' if is_dark_mode else '浅色'}")
+                        logger.debug(f"注册表检测主题: {'深色' if is_dark_mode else '浅色'}")
             
             except Exception as reg_e:
-                print(f"[DEBUG] 注册表检测失败: {reg_e}")
+                logger.debug(f"注册表检测失败: {reg_e}")
                 is_dark_mode = (ctk.get_appearance_mode() == "dark")
             
             theme_name = "深色" if is_dark_mode else "浅色"
-            print(f"[DEBUG] ========== 开始设置{theme_name}标题栏 ==========")
+            logger.debug(f"========== 开始设置{theme_name}标题栏 ==========")
             
             # ========== 获取正确的窗口句柄 ==========
             self.update_idletasks()
             
             hwnd = self.winfo_id()
-            print(f"[DEBUG] winfo_id() = {hwnd}")
+            logger.debug(f"winfo_id() = {hwnd}")
             
             user32 = ctypes.windll.user32
             dwmapi = ctypes.windll.dwmapi
@@ -1263,7 +1319,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             GA_ROOT = 2
             root_hwnd = GetAncestor(hwnd, GA_ROOT)
             if root_hwnd:
-                print(f"[DEBUG] GetAncestor(GA_ROOT) = {root_hwnd}")
+                logger.debug(f"GetAncestor(GA_ROOT) = {root_hwnd}")
                 hwnd = root_hwnd
             
             # ========== 方法1: DWMWA_USE_IMMERSIVE_DARK_MODE (Win11) ==========
@@ -1280,9 +1336,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     byref(dark_value), 
                     sizeof(dark_value)
                 )
-                print(f"[DEBUG] 方法1 DWMWA_USE_IMMERSIVE_DARK_MODE: result={result}, {theme_name}")
+                logger.debug(f"方法1 DWMWA_USE_IMMERSIVE_DARK_MODE: result={result}, {theme_name}")
             except Exception as e:
-                print(f"[DEBUG] 方法1失败: {e}")
+                logger.debug(f"方法1失败: {e}")
             
             # ========== 方法2: SetPropW 设置 UseImmersiveDarkModeColors ==========
             try:
@@ -1292,9 +1348,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 
                 # 设置窗口属性（1=深色，0=浅色）
                 result = SetPropW(hwnd, "UseImmersiveDarkModeColors", wintypes.HANDLE(1 if is_dark_mode else 0))
-                print(f"[DEBUG] 方法2 SetPropW(UseImmersiveDarkModeColors): result={result}, {theme_name}")
+                logger.debug(f"方法2 SetPropW(UseImmersiveDarkModeColors): result={result}, {theme_name}")
             except Exception as e:
-                print(f"[DEBUG] 方法2失败: {e}")
+                logger.debug(f"方法2失败: {e}")
             
             # ========== 方法3: AllowDarkModeForWindow ==========
             try:
@@ -1304,9 +1360,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 AllowDarkModeForWindow.restype = wintypes.BOOL
                 
                 result = AllowDarkModeForWindow(hwnd, True)
-                print(f"[DEBUG] 方法3 AllowDarkModeForWindow: result={result}")
+                logger.debug(f"方法3 AllowDarkModeForWindow: result={result}")
             except Exception as e:
-                print(f"[DEBUG] 方法3失败: {e}")
+                logger.debug(f"方法3失败: {e}")
             
             # ========== 方法4: FlushDarkMode ==========
             try:
@@ -1316,9 +1372,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 FlushDarkMode.restype = wintypes.BOOL
                 
                 result = FlushDarkMode()
-                print(f"[DEBUG] 方法4 FlushDarkMode: result={result}")
+                logger.debug(f"方法4 FlushDarkMode: result={result}")
             except Exception as e:
-                print(f"[DEBUG] 方法4失败: {e}")
+                logger.debug(f"方法4失败: {e}")
             
             # ========== 方法5: 刷新非客户区 ==========
             try:
@@ -1328,9 +1384,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 user32.SendMessageW(hwnd, WM_NCACTIVATE, 0, 0)
                 user32.SendMessageW(hwnd, WM_NCACTIVATE, 1, 0)
                 user32.SendMessageW(hwnd, WM_NCPAINT, 1, 0)
-                print("[DEBUG] 方法5 刷新非客户区: 完成")
+                logger.debug("方法5 刷新非客户区: 完成")
             except Exception as e:
-                print(f"[DEBUG] 方法5失败: {e}")
+                logger.debug(f"方法5失败: {e}")
             
             # ========== 方法6: 强制重绘 ==========
             try:
@@ -1341,14 +1397,14 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 
                 user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
-                print("[DEBUG] 方法6 强制重绘: 完成")
+                logger.debug("方法6 强制重绘: 完成")
             except Exception as e:
-                print(f"[DEBUG] 方法6失败: {e}")
+                logger.debug(f"方法6失败: {e}")
             
-            print(f"[DEBUG] ========== {theme_name}标题栏设置完成 ==========")
+            logger.debug(f"========== {theme_name}标题栏设置完成 ==========")
             
         except Exception as e:
-            print(f"[DEBUG] 设置标题栏颜色失败: {e}")
+            logger.debug(f"设置标题栏颜色失败: {e}")
 
 
     def _update_titlebar_color_from_ctk(self, user_choice=None):
@@ -1401,9 +1457,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                             
                             if result == 0:
                                 is_dark_mode = (value.value == 0)
-                                print(f"[DEBUG] 注册表检测系统主题: {'深色' if is_dark_mode else '浅色'}")
+                                logger.debug(f"注册表检测系统主题: {'深色' if is_dark_mode else '浅色'}")
                     except Exception as reg_e:
-                        print(f"[DEBUG] 注册表检测系统主题失败: {reg_e}")
+                        logger.debug(f"注册表检测系统主题失败: {reg_e}")
                 # 浅色模式不需要特殊处理，is_dark_mode 保持 False
             else:
                 # 没有用户选择时，从ctk获取当前主题设置
@@ -1444,15 +1500,15 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                             
                             if result == 0:
                                 is_dark_mode = (value.value == 0)
-                                print(f"[DEBUG] 注册表检测系统主题: {'深色' if is_dark_mode else '浅色'}")
+                                logger.debug(f"注册表检测系统主题: {'深色' if is_dark_mode else '浅色'}")
                     except Exception as reg_e:
-                        print(f"[DEBUG] 注册表检测系统主题失败: {reg_e}")
+                        logger.debug(f"注册表检测系统主题失败: {reg_e}")
             
             appearance_mode = user_choice if user_choice else ctk.get_appearance_mode()
-            print(f"[DEBUG] appearance_mode={appearance_mode}, is_dark_mode={is_dark_mode}")
+            logger.debug(f"appearance_mode={appearance_mode}, is_dark_mode={is_dark_mode}")
             
             theme_name = "深色" if is_dark_mode else "浅色"
-            print(f"[DEBUG] 主题切换：设置{theme_name}标题栏 (模式={appearance_mode})")
+            logger.debug(f"主题切换：设置{theme_name}标题栏 (模式={appearance_mode})")
             
             # 定义与主框架一致的颜色
             if is_dark_mode:
@@ -1486,9 +1542,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 DWMWA_USE_IMMERSIVE_DARK_MODE = 20
                 dark_value = ctypes.c_int(1 if is_dark_mode else 0)
                 result = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, byref(dark_value), sizeof(dark_value))
-                print(f"[DEBUG] DWMWA_USE_IMMERSIVE_DARK_MODE: result={result}, {theme_name}")
+                logger.debug(f"DWMWA_USE_IMMERSIVE_DARK_MODE: result={result}, {theme_name}")
             except Exception as e:
-                print(f"[DEBUG] DWMWA_USE_IMMERSIVE_DARK_MODE失败: {e}")
+                logger.debug(f"DWMWA_USE_IMMERSIVE_DARK_MODE失败: {e}")
             
             # 方法2: SetPropW
             try:
@@ -1496,26 +1552,26 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 SetPropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR, wintypes.HANDLE]
                 SetPropW.restype = wintypes.BOOL
                 result = SetPropW(hwnd, "UseImmersiveDarkModeColors", wintypes.HANDLE(1 if is_dark_mode else 0))
-                print(f"[DEBUG] SetPropW: result={result}, {theme_name}")
+                logger.debug(f"SetPropW: result={result}, {theme_name}")
             except Exception as e:
-                print(f"[DEBUG] SetPropW失败: {e}")
+                logger.debug(f"SetPropW失败: {e}")
             
             # 方法3: 设置标题栏背景颜色 (DWMWA_CAPTION_COLOR = 35)
             try:
                 caption_color = (bg_color_rgb[2] << 16) | (bg_color_rgb[1] << 8) | bg_color_rgb[0]
                 color_value = ctypes.c_int(caption_color)
                 result = DwmSetWindowAttribute(hwnd, 35, byref(color_value), sizeof(color_value))
-                print(f"[DEBUG] DWMWA_CAPTION_COLOR: result={result}, color=#{caption_color:06X} ({theme_name})")
+                logger.debug(f"DWMWA_CAPTION_COLOR: result={result}, color=#{caption_color:06X} ({theme_name})")
             except Exception as e:
-                print(f"[DEBUG] DWMWA_CAPTION_COLOR失败: {e}")
+                logger.debug(f"DWMWA_CAPTION_COLOR失败: {e}")
             
             # 方法4: 设置边框颜色 (DWMWA_BORDER_COLOR = 34)
             try:
                 border_color_value = ctypes.c_int(caption_color)
                 result = DwmSetWindowAttribute(hwnd, 34, byref(border_color_value), sizeof(border_color_value))
-                print(f"[DEBUG] DWMWA_BORDER_COLOR: result={result}, color=#{caption_color:06X}")
+                logger.debug(f"DWMWA_BORDER_COLOR: result={result}, color=#{caption_color:06X}")
             except Exception as e:
-                print(f"[DEBUG] DWMWA_BORDER_COLOR失败: {e}")
+                logger.debug(f"DWMWA_BORDER_COLOR失败: {e}")
             
             # 强制刷新窗口
             SWP_FRAMECHANGED = 0x0020
@@ -1532,10 +1588,10 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             WM_NCPAINT = 0x0085
             user32.SendMessageW(hwnd, WM_NCPAINT, 1, 0)
             
-            print(f"[DEBUG] {theme_name}标题栏设置完成（原生标题栏）")
+            logger.debug(f"{theme_name}标题栏设置完成（原生标题栏）")
             
         except Exception as e:
-            print(f"[DEBUG] 更新标题栏颜色失败: {e}")
+            logger.debug(f"更新标题栏颜色失败: {e}")
 
     def _setup_window_corner_radius(self):
         """使用Windows DWM API设置窗口圆角"""
@@ -1569,12 +1625,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             )
             
             if result == 0:
-                print("[DEBUG] 窗口圆角设置成功")
+                logger.debug("窗口圆角设置成功")
             else:
-                print(f"[DEBUG] 窗口圆角设置失败: {result}")
+                logger.debug(f"窗口圆角设置失败: {result}")
                 
         except Exception as e:
-            print(f"[DEBUG] 设置窗口圆角失败: {e}")
+            logger.debug(f"设置窗口圆角失败: {e}")
 
     def _minimize_window(self):
         """最小化无边框窗口"""
@@ -1583,9 +1639,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             self.withdraw()
             # 保存窗口位置以便恢复
             self._last_geometry = self.geometry()
-            print("[DEBUG] 窗口已最小化")
+            logger.debug("窗口已最小化")
         except Exception as e:
-            print(f"[DEBUG] 最小化窗口失败: {e}")
+            logger.debug(f"最小化窗口失败: {e}")
 
     def _toggle_visibility(self):
         """切换窗口可见性"""
@@ -1593,20 +1649,20 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             if self.state() == 'normal' or self.winfo_viewable():
                 # 使用iconify()最小化到任务栏，而不是withdraw()
                 self.iconify()
-                print("[DEBUG] 窗口已最小化到任务栏")
+                logger.debug("窗口已最小化到任务栏")
             else:
                 # 恢复窗口
                 self.deiconify()
                 self.lift()
                 self.focus_force()
-                print("[DEBUG] 窗口已显示")
+                logger.debug("窗口已显示")
         except Exception as e:
-            print(f"[DEBUG] 切换窗口可见性失败: {e}")
+            logger.debug(f"切换窗口可见性失败: {e}")
 
     def _setup_global_hotkey(self):
         """设置全局快捷键"""
         if not HAS_HOTKEY:
-            print("[DEBUG] 全局快捷键不可用（需安装pynput）")
+            logger.debug("全局快捷键不可用（需安装pynput）")
             return
         
         try:
@@ -1615,9 +1671,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 '<ctrl>+<shift>+l': self._toggle_visibility
             })
             self._hotkey_listener.start()
-            print("[DEBUG] 全局快捷键 Ctrl+Shift+L 已注册")
+            logger.debug("全局快捷键 Ctrl+Shift+L 已注册")
         except Exception as e:
-            print(f"[DEBUG] 设置全局快捷键失败: {e}")
+            logger.debug(f"设置全局快捷键失败: {e}")
 
     def _set_window_icon(self):
         """设置窗口图标"""
@@ -1625,11 +1681,11 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             icon_path = os.path.join(os.path.dirname(__file__), "assets", "app.ico")
             if os.path.exists(icon_path):
                 self.iconbitmap(icon_path)
-                print(f"[DEBUG] 窗口图标设置成功: {icon_path}")
+                logger.debug(f"窗口图标设置成功: {icon_path}")
             else:
-                print(f"[DEBUG] 窗口图标文件不存在: {icon_path}")
+                logger.debug(f"窗口图标文件不存在: {icon_path}")
         except Exception as e:
-            print(f"[DEBUG] 设置窗口图标失败: {e}")
+            logger.debug(f"设置窗口图标失败: {e}")
 
     def _setup_taskbar_icon(self):
         """设置任务栏图标 - 让无边框窗口在任务栏显示"""
@@ -1668,18 +1724,18 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             result = user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style)
             
             if result != 0:
-                print("[DEBUG] 任务栏图标设置成功")
+                logger.debug("任务栏图标设置成功")
             else:
-                print("[DEBUG] 任务栏图标设置失败")
+                logger.debug("任务栏图标设置失败")
                 
         except Exception as e:
-            print(f"[DEBUG] 设置任务栏图标失败: {e}")
+            logger.debug(f"设置任务栏图标失败: {e}")
 
     def _detect_system_theme(self):
         """检测Windows系统主题并设置应用主题"""
         try:
             if sys.platform != "win32":
-                print("[DEBUG] 非Windows系统，使用默认主题")
+                logger.debug("非Windows系统，使用默认主题")
                 ctk.set_appearance_mode("system")
                 return
             
@@ -1703,7 +1759,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             )
             
             if result != 0:
-                print("[DEBUG] 无法读取注册表，使用默认主题")
+                logger.debug("无法读取注册表，使用默认主题")
                 ctk.set_appearance_mode("system")
                 return
             
@@ -1722,20 +1778,20 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             advapi32.RegCloseKey(hkey)
             
             if result != 0:
-                print("[DEBUG] 无法读取主题值，使用默认主题")
+                logger.debug("无法读取主题值，使用默认主题")
                 ctk.set_appearance_mode("system")
                 return
             
             # 0 = 深色主题, 1 = 浅色主题
             if value.value == 0:
-                print("[DEBUG] 检测到系统深色主题")
+                logger.debug("检测到系统深色主题")
                 ctk.set_appearance_mode("dark")
             else:
-                print("[DEBUG] 检测到系统浅色主题")
+                logger.debug("检测到系统浅色主题")
                 ctk.set_appearance_mode("light")
                 
         except Exception as e:
-            print(f"[DEBUG] 检测系统主题失败: {e}")
+            logger.debug(f"检测系统主题失败: {e}")
             ctk.set_appearance_mode("system")
 
     def _setup_dark_titlebar_early(self):
@@ -1781,14 +1837,14 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 is_dark_mode = (ctk.get_appearance_mode() == "dark")
             
             theme_name = "深色" if is_dark_mode else "浅色"
-            print(f"[DEBUG] 早期设置{theme_name}标题栏...")
+            logger.debug(f"早期设置{theme_name}标题栏...")
             
             # 强制更新窗口
             self.update()
             
             # 获取窗口句柄 - 尝试多种方法
             hwnd = self.winfo_id()
-            print(f"[DEBUG] winfo_id() = {hwnd}")
+            logger.debug(f"winfo_id() = {hwnd}")
             
             user32 = ctypes.windll.user32
             dwmapi = ctypes.windll.dwmapi
@@ -1805,13 +1861,13 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             GA_ROOT = 2
             root_hwnd = GetAncestor(hwnd, GA_ROOT)
             if root_hwnd:
-                print(f"[DEBUG] GetAncestor(GA_ROOT) = {root_hwnd}")
+                logger.debug(f"GetAncestor(GA_ROOT) = {root_hwnd}")
                 hwnd = root_hwnd
             
             # 也尝试GetParent链
             parent_hwnd = GetParent(hwnd)
             if parent_hwnd:
-                print(f"[DEBUG] GetParent = {parent_hwnd}")
+                logger.debug(f"GetParent = {parent_hwnd}")
                 # 继续向上查找
                 temp = parent_hwnd
                 while temp:
@@ -1820,7 +1876,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                         break
                     temp = next_parent
                 if temp:
-                    print(f"[DEBUG] 顶层父窗口 = {temp}")
+                    logger.debug(f"顶层父窗口 = {temp}")
                     hwnd = temp
             
             # ========== 方法1: 使用win32api ==========
@@ -1831,15 +1887,15 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 
                 # 尝试使用win32api设置窗口属性
                 style = win32api.GetWindowLong(hwnd, win32con.GWL_STYLE)
-                print(f"[DEBUG] 方法1 win32api.GetWindowLong: style={style}")
+                logger.debug(f"方法1 win32api.GetWindowLong: style={style}")
                 
                 # 尝试使用win32gui的SetProp
                 ctypes.windll.user32.SetPropW(hwnd, "UseImmersiveDarkModeColors", 1 if is_dark_mode else 0)
-                print(f"[DEBUG] 方法1 ctypes.SetPropW: {'深色' if is_dark_mode else '浅色'}")
+                logger.debug(f"方法1 ctypes.SetPropW: {'深色' if is_dark_mode else '浅色'}")
             except ImportError:
-                print("[DEBUG] 方法1 win32api不可用")
+                logger.debug("方法1 win32api不可用")
             except Exception as e:
-                print(f"[DEBUG] 方法1失败: {e}")
+                logger.debug(f"方法1失败: {e}")
             
             # ========== 方法2: SetPropW ==========
             try:
@@ -1847,9 +1903,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 SetPropW.argtypes = [wintypes.HWND, wintypes.LPCWSTR, wintypes.HANDLE]
                 SetPropW.restype = wintypes.BOOL
                 result = SetPropW(hwnd, "UseImmersiveDarkModeColors", wintypes.HANDLE(1 if is_dark_mode else 0))
-                print(f"[DEBUG] 方法2 SetPropW: result={result}, {'深色' if is_dark_mode else '浅色'}")
+                logger.debug(f"方法2 SetPropW: result={result}, {'深色' if is_dark_mode else '浅色'}")
             except Exception as e:
-                print(f"[DEBUG] 方法2失败: {e}")
+                logger.debug(f"方法2失败: {e}")
             
             # ========== 方法3: DWMWA_USE_IMMERSIVE_DARK_MODE ==========
             try:
@@ -1860,18 +1916,18 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 DWMWA_USE_IMMERSIVE_DARK_MODE = 20
                 dark_value = ctypes.c_int(1 if is_dark_mode else 0)
                 result = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, byref(dark_value), sizeof(dark_value))
-                print(f"[DEBUG] 方法3 DWMWA_USE_IMMERSIVE_DARK_MODE: result={result}, {'深色' if is_dark_mode else '浅色'}")
+                logger.debug(f"方法3 DWMWA_USE_IMMERSIVE_DARK_MODE: result={result}, {'深色' if is_dark_mode else '浅色'}")
             except Exception as e:
-                print(f"[DEBUG] 方法3失败: {e}")
+                logger.debug(f"方法3失败: {e}")
             
             # ========== 方法4: DWMWA_MICA_EFFECT (Win11) ==========
             try:
                 DWMWA_MICA_EFFECT = 38
                 mica_value = ctypes.c_int(1 if is_dark_mode else 0)
                 result = DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, byref(mica_value), sizeof(mica_value))
-                print(f"[DEBUG] 方法4 DWMWA_MICA_EFFECT: result={result}, {'深色' if is_dark_mode else '浅色'}")
+                logger.debug(f"方法4 DWMWA_MICA_EFFECT: result={result}, {'深色' if is_dark_mode else '浅色'}")
             except Exception as e:
-                print(f"[DEBUG] 方法4失败: {e}")
+                logger.debug(f"方法4失败: {e}")
             
             # ========== 方法5: DWMWA_SYSTEMBACKDROP_TYPE (Win11 22H2) ==========
             try:
@@ -1879,9 +1935,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 # 2 = Mica Dark, 3 = Mica Light
                 backdrop_value = ctypes.c_int(2 if is_dark_mode else 3)
                 result = DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, byref(backdrop_value), sizeof(backdrop_value))
-                print(f"[DEBUG] 方法5 DWMWA_SYSTEMBACKDROP_TYPE: result={result}, {'深色Mica' if is_dark_mode else '浅色Mica'}")
+                logger.debug(f"方法5 DWMWA_SYSTEMBACKDROP_TYPE: result={result}, {'深色Mica' if is_dark_mode else '浅色Mica'}")
             except Exception as e:
-                print(f"[DEBUG] 方法5失败: {e}")
+                logger.debug(f"方法5失败: {e}")
             
             # ========== 方法6: 强制刷新窗口 ==========
             try:
@@ -1892,12 +1948,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 
                 user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
-                print("[DEBUG] 方法6 强制刷新: 完成")
+                logger.debug("方法6 强制刷新: 完成")
             except Exception as e:
-                print(f"[DEBUG] 方法6失败: {e}")
+                logger.debug(f"方法6失败: {e}")
             
         except Exception as e:
-            print(f"[DEBUG] 早期深色标题栏设置失败: {e}")
+            logger.debug(f"早期深色标题栏设置失败: {e}")
 
     def _set_window_bg_color(self):
         """设置窗口背景色并同步标题栏颜色"""
@@ -1978,18 +2034,18 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 caption_color = (bg_color_rgb[2] << 16) | (bg_color_rgb[1] << 8) | bg_color_rgb[0]
                 color_value = ctypes.c_int(caption_color)
                 result = DwmSetWindowAttribute(hwnd, 35, ctypes.byref(color_value), sizeof(color_value))
-                print(f"[DEBUG] DWMWA_CAPTION_COLOR: result={result}, color=#{caption_color:06X} ({theme_name})")
+                logger.debug(f"DWMWA_CAPTION_COLOR: result={result}, color=#{caption_color:06X} ({theme_name})")
                 
                 # 设置边框颜色 (DWMWA_BORDER_COLOR = 34)
                 border_color_value = ctypes.c_int(caption_color)
                 result2 = DwmSetWindowAttribute(hwnd, 34, ctypes.byref(border_color_value), sizeof(border_color_value))
                 
             except Exception as e:
-                print(f"[DEBUG] 设置DWM标题栏颜色失败: {e}")
+                logger.debug(f"设置DWM标题栏颜色失败: {e}")
             
-            print(f"[DEBUG] 窗口背景设置为透明，标题栏颜色已同步 ({theme_name}主题)")
+            logger.debug(f"窗口背景设置为透明，标题栏颜色已同步 ({theme_name}主题)")
         except Exception as e:
-            print(f"[DEBUG] 设置窗口背景色失败: {e}")
+            logger.debug(f"设置窗口背景色失败: {e}")
             is_dark_mode = (ctk.get_appearance_mode().lower() == "dark")
             if is_dark_mode:
                 self.configure(bg="#1F1F1F")
@@ -2029,12 +2085,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             )
             
             if result == 0:
-                print("[DEBUG] 标题栏颜色设置成功（深色）")
+                logger.debug("标题栏颜色设置成功（深色）")
             else:
-                print(f"[DEBUG] 标题栏颜色设置失败: {result}")
+                logger.debug(f"标题栏颜色设置失败: {result}")
                 
         except Exception as e:
-            print(f"[DEBUG] 设置标题栏颜色失败: {e}")
+            logger.debug(f"设置标题栏颜色失败: {e}")
 
     def _set_title_bar_color_light(self):
         """设置标题栏为浅色主题"""
@@ -2067,12 +2123,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             )
             
             if result == 0:
-                print("[DEBUG] 标题栏颜色设置成功（浅色）")
+                logger.debug("标题栏颜色设置成功（浅色）")
             else:
-                print(f"[DEBUG] 标题栏颜色设置失败: {result}")
+                logger.debug(f"标题栏颜色设置失败: {result}")
                 
         except Exception as e:
-            print(f"[DEBUG] 设置标题栏颜色失败: {e}")
+            logger.debug(f"设置标题栏颜色失败: {e}")
 
     def _show_settings(self):
         """显示设置对话框"""
@@ -2239,8 +2295,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
     def _change_theme(self, choice):
         """更改主题（带平滑过渡效果）"""
-        print(f"[DEBUG] ========== 主题切换开始 ==========")
-        print(f"[DEBUG] 用户选择: {choice}")
+        logger.debug(f"========== 主题切换开始 ==========")
+        logger.debug(f"用户选择: {choice}")
         
         # 保存原始透明度
         original_alpha = self.attributes('-alpha')
@@ -2254,10 +2310,10 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 切换主题
         theme_map = {"浅色": "light", "深色": "dark", "跟随系统": "system"}
         new_mode = theme_map.get(choice, "system")
-        print(f"[DEBUG] ctk模式: {new_mode}")
+        logger.debug(f"ctk模式: {new_mode}")
         
         ctk.set_appearance_mode(new_mode)
-        print(f"[DEBUG] ctk.get_appearance_mode() = {ctk.get_appearance_mode()}")
+        logger.debug(f"ctk.get_appearance_mode() = {ctk.get_appearance_mode()}")
         
         # 同步更新窗口背景色
         self._set_window_bg_color()
@@ -2275,7 +2331,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             self.attributes('-alpha', alpha)
             self.update_idletasks()
         
-        print(f"[DEBUG] ========== 主题切换完成 ==========")
+        logger.debug(f"========== 主题切换完成 ==========")
 
     def _change_alpha(self, value):
         """更改透明度"""
@@ -2296,7 +2352,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             finally:
                 winreg.CloseKey(key)
         except Exception as e:
-            print(f"[DEBUG] 检查自启动失败: {e}")
+            logger.debug(f"检查自启动失败: {e}")
             return False
 
     def _set_autostart(self, enabled):
@@ -2311,18 +2367,18 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 script_path = os.path.abspath(sys.argv[0])
                 cmd = f'"{exe_path}" "{script_path}"'
                 winreg.SetValueEx(key, "Win11Launchpad", 0, winreg.REG_SZ, cmd)
-                print(f"[DEBUG] 设置开机自启动: {cmd}")
+                logger.debug(f"设置开机自启动: {cmd}")
             else:
                 # 取消自启动
                 try:
                     winreg.DeleteValue(key, "Win11Launchpad")
-                    print(f"[DEBUG] 取消开机自启动")
+                    logger.debug(f"取消开机自启动")
                 except WindowsError:
                     pass
             
             winreg.CloseKey(key)
         except Exception as e:
-            print(f"[DEBUG] 设置自启动失败: {e}")
+            logger.debug(f"设置自启动失败: {e}")
 
     def _load_config(self):
         """从文件加载配置"""
@@ -2352,15 +2408,15 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                         alpha_value = float(data["alpha"])
                         self.alpha_var.set(alpha_value)
                         self.attributes('-alpha', alpha_value)
-                        print(f"[DEBUG] 透明度已加载: {alpha_value}")
-                    print(f"[DEBUG] 配置已从 {CONFIG_FILE} 加载")
+                        logger.debug(f"透明度已加载: {alpha_value}")
+                    logger.debug(f"配置已从 {CONFIG_FILE} 加载")
             else:
-                print(f"[DEBUG] 配置文件 {CONFIG_FILE} 不存在，使用默认配置")
+                logger.debug(f"配置文件 {CONFIG_FILE} 不存在，使用默认配置")
         except Exception as e:
-            print(f"[DEBUG] 加载配置失败: {e}")
+            logger.debug(f"加载配置失败: {e}")
 
     def _save_config(self):
-        """保存配置到文件"""
+        """保存配置到文件 - 原子写入，避免中断导致配置损坏"""
         try:
             _ensure_config_dir()
             # 确保 alpha_var 已初始化
@@ -2371,17 +2427,29 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 "categories": self.categories,
                 "alpha": self.alpha_var.get()
             }
-            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            # 先写入临时文件
+            tmp_path = CONFIG_FILE + '.tmp'
+            with open(tmp_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            print(f"[DEBUG] 配置已保存到 {CONFIG_FILE}")
+                f.flush()
+                os.fsync(f.fileno())
+            # 原子替换（Windows 上 os.replace 是原子操作）
+            os.replace(tmp_path, CONFIG_FILE)
+            # 保留一份备份
+            try:
+                import shutil
+                shutil.copy2(CONFIG_FILE, CONFIG_FILE + '.bak')
+            except Exception:
+                pass
+            logger.debug(f"配置已保存到 {CONFIG_FILE}")
         except Exception as e:
-            print(f"[DEBUG] 保存配置失败: {e}")
+            logger.debug(f"保存配置失败: {e}")
 
     def _save_settings(self, dialog):
         """保存设置"""
         # 保存快捷键
         new_hotkey = self.hotkey_var.get()
-        print(f"[DEBUG] 保存快捷键: {new_hotkey}")
+        logger.debug(f"保存快捷键: {new_hotkey}")
 
         # 保存主题
         theme_map = {"浅色": "light", "深色": "dark", "跟随系统": "system"}
@@ -2551,7 +2619,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._new_cat_var.set("")
 
         self._show_message(f"已添加分类 '{new_name}'")
-        print(f"[CATEGORY] 添加分类: {new_name}")
+        logger.info(f"添加分类: {new_name}")
 
     def _delete_category_from_settings(self, cat_name):
         """从设置界面删除分类"""
@@ -2606,7 +2674,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             self._refresh_grid(force=True)
             confirm.destroy()
             self._show_message(f"已删除分类 '{cat_name}'")
-            print(f"[CATEGORY] 删除分类: {cat_name}")
+            logger.info(f"删除分类: {cat_name}")
 
         ctk.CTkButton(
             btn_frame,
@@ -2693,7 +2761,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             self._refresh_grid(force=True)
             rename_dlg.destroy()
             self._show_message(f"已重命名为 '{new_name}'")
-            print(f"[CATEGORY] 重命名: {old_name} -> {new_name}")
+            logger.info(f"重命名: {old_name} -> {new_name}")
 
         entry.bind("<Return>", lambda e: do_rename())
 
@@ -2888,59 +2956,59 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
     def _setup_drop_target(self):
         """设置拖放目标 (tkinterdnd2方式)"""
         try:
-            print("[DEBUG] Setting up drop target")
+            logger.debug("Setting up drop target")
             self.update_idletasks()
             
             # 在根窗口注册拖放
             self.drop_target_register(DND_FILES)
             self.dnd_bind('<<Drop>>', self._on_drop)
-            print("[DEBUG] Drop target registered on root window")
+            logger.debug("Drop target registered on root window")
             
             # 在主frame上注册
             if hasattr(self.main_frame, 'drop_target_register'):
                 self.main_frame.drop_target_register(DND_FILES)
                 self.main_frame.dnd_bind('<<Drop>>', self._on_drop)
-                print("[DEBUG] Drop target registered on main_frame")
+                logger.debug("Drop target registered on main_frame")
             
             # 在滚动框架上注册
             if hasattr(self.scroll_frame, 'drop_target_register'):
                 self.scroll_frame.drop_target_register(DND_FILES)
                 self.scroll_frame.dnd_bind('<<Drop>>', self._on_drop)
-                print("[DEBUG] Drop target registered on scroll_frame")
+                logger.debug("Drop target registered on scroll_frame")
             
             # 在网格框架上注册
             if hasattr(self.grid_frame, 'drop_target_register'):
                 self.grid_frame.drop_target_register(DND_FILES)
                 self.grid_frame.dnd_bind('<<Drop>>', self._on_drop)
-                print("[DEBUG] Drop target registered on grid_frame")
+                logger.debug("Drop target registered on grid_frame")
             
             # 在拖放区域上注册
             if hasattr(self.drop_zone, 'drop_target_register'):
                 self.drop_zone.drop_target_register(DND_FILES)
                 self.drop_zone.dnd_bind('<<Drop>>', self._on_drop)
-                print("[DEBUG] Drop target registered on drop_zone")
+                logger.debug("Drop target registered on drop_zone")
             
             self._show_message("拖拽功能已启用")
             
         except Exception as e:
-            print(f"[DEBUG] DnD setup failed: {e}")
+            logger.debug(f"DnD setup failed: {e}")
             import traceback
             traceback.print_exc()
             self._show_message(f"拖拽设置失败: {str(e)}")
 
     def _on_drop(self, event):
         """处理拖放事件 (tkinterdnd2)"""
-        print(f"[DEBUG] Drop event received: {event}")
+        logger.debug(f"Drop event received: {event}")
         try:
             # 获取拖放的文件路径
             file_paths = self.tk.splitlist(event.data)
-            print(f"[DEBUG] Dropped files: {file_paths}")
+            logger.debug(f"Dropped files: {file_paths}")
             
             # 处理文件
             self._handle_dropped_files(file_paths)
                 
         except Exception as e:
-            print(f"[DEBUG] Drop handler error: {e}")
+            logger.debug(f"Drop handler error: {e}")
             import traceback
             traceback.print_exc()
             self._show_message(f"拖放失败: {str(e)}")
@@ -2983,10 +3051,10 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 if not exists:
                     self.app_config[self.current_category].append(app_info)
                     added_count += 1
-                    print(f"[ADD] 添加应用: {app_info['name']} -> {app_info['path']}")
+                    logger.info(f"添加应用: {app_info['name']} -> {app_info['path']}")
             
             except Exception as e:
-                print(f"[DEBUG] 处理文件失败 {file_path}: {e}")
+                logger.debug(f"处理文件失败 {file_path}: {e}")
                 invalid_count += 1
         
         if added_count > 0:
@@ -3146,7 +3214,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
     def _mark_initialized(self):
         """标记初始化完成"""
         self._is_initialized = True
-        print("[DEBUG] Window initialized, resize events enabled")
+        logger.debug("Window initialized, resize events enabled")
 
     def _on_window_resize(self, event):
         """窗口大小变化时刷新网格（带防抖）"""
@@ -3163,7 +3231,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
     def _show_message(self, msg: str):
         """显示消息"""
-        print(f"[DEBUG] Status message: {msg}")
+        logger.debug(f"Status message: {msg}")
         self.status_label.configure(text=msg)
         self.after(3000, lambda: self.status_label.configure(text=""))
 
@@ -3227,10 +3295,10 @@ class AppGridItem(ctk.CTkFrame):
                 # 点击动画效果
                 self._click_animation()
                 
-                print(f"[DEBUG] 启动应用: {app_path}")
+                logger.debug(f"启动应用: {app_path}")
                 os.startfile(app_path)
             except Exception as e:
-                print(f"[DEBUG] 启动失败: {e}")
+                logger.debug(f"启动失败: {e}")
 
     def _click_animation(self):
         """点击动画 - 闪烁效果"""
@@ -3542,18 +3610,18 @@ class AppGridItem(ctk.CTkFrame):
                 shortcut = shell.CreateShortCut(original_path)
                 target_path = shortcut.Targetpath
                 if target_path and os.path.exists(target_path):
-                    print(f"[DEBUG] 原始路径失效，从快捷方式解析新路径: {target_path}")
+                    logger.debug(f"原始路径失效，从快捷方式解析新路径: {target_path}")
                     os.startfile(target_path)
                     return
             except Exception as e:
-                print(f"[DEBUG] 从快捷方式解析目标路径失败: {e}")
+                logger.debug(f"从快捷方式解析目标路径失败: {e}")
         
         # 方法3：如果路径失效，通过程序名称搜索常见安装目录
         app_name = self.app_data.get("name", "")
         if app_name:
             found_path = self._search_app_in_common_paths(app_name)
             if found_path:
-                print(f"[DEBUG] 在常见目录中找到程序: {found_path}")
+                logger.debug(f"在常见目录中找到程序: {found_path}")
                 os.startfile(found_path)
                 return
         
@@ -3582,7 +3650,7 @@ class AppGridItem(ctk.CTkFrame):
                         if os.path.exists(match):
                             return match
             except Exception as e:
-                print(f"[DEBUG] 搜索目录失败 {pattern}: {e}")
+                logger.debug(f"搜索目录失败 {pattern}: {e}")
         
         # 搜索注册表中的 Uninstall 键
         try:
@@ -3626,7 +3694,7 @@ class AppGridItem(ctk.CTkFrame):
                     except:
                         pass
         except Exception as e:
-            print(f"[DEBUG] 注册表搜索失败: {e}")
+            logger.debug(f"注册表搜索失败: {e}")
         
         return None
 
@@ -3638,7 +3706,7 @@ class AppGridItem(ctk.CTkFrame):
                 import ctypes
                 ctypes.windll.shell32.ShellExecuteW(None, "runas", app_path, None, None, 1)
             except Exception as e:
-                print(f"[DEBUG] 管理员启动失败: {e}")
+                logger.debug(f"管理员启动失败: {e}")
 
     def _do_move_category(self, target_category):
         """执行移动分类"""
@@ -3672,12 +3740,12 @@ class AppGridItem(ctk.CTkFrame):
 
     def _delete_app(self):
         """删除应用"""
-        print(f"[DELETE DEBUG] ===== _delete_app 方法被调用 ======")
-        print(f"[DELETE DEBUG] parent_window: {self.parent_window}")
-        print(f"[DELETE DEBUG] app_data: {self.app_data}")
+        logger.debug(f"===== _delete_app 方法被调用 ======")
+        logger.debug(f"parent_window: {self.parent_window}")
+        logger.debug(f"app_data: {self.app_data}")
         
         if not self.parent_window:
-            print(f"[DELETE DEBUG] parent_window 为空，返回")
+            logger.debug(f"parent_window 为空，返回")
             return
         
         # 创建确认对话框
@@ -3708,14 +3776,14 @@ class AppGridItem(ctk.CTkFrame):
             app_path = self.app_data.get("path", "")
             apps = self.parent_window.app_config[current_category]
             
-            print(f"="*60)
-            print(f"[DELETE DEBUG] 开始删除流程")
-            print(f"[DELETE DEBUG] 当前分类: {current_category}")
-            print(f"[DELETE DEBUG] 目标应用路径: '{app_path}'")
-            print(f"[DELETE DEBUG] 目标应用名称: '{self.app_data.get('name', '')}'")
-            print(f"[DELETE DEBUG] 删除前应用数量: {len(apps)}")
-            print(f"[DELETE DEBUG] 删除前配置中的应用: {[a.get('name') for a in apps]}")
-            print(f"[DELETE DEBUG] 删除前缓存数量: {len(self.parent_window.category_items_cache[current_category])}")
+            logger.info("="*60)
+            logger.debug(f"开始删除流程")
+            logger.debug(f"当前分类: {current_category}")
+            logger.debug(f"目标应用路径: '{app_path}'")
+            logger.debug(f"目标应用名称: '{self.app_data.get('name', '')}'")
+            logger.debug(f"删除前应用数量: {len(apps)}")
+            logger.debug(f"删除前配置中的应用: {[a.get('name') for a in apps]}")
+            logger.debug(f"删除前缓存数量: {len(self.parent_window.category_items_cache[current_category])}")
             
             # 查找并删除匹配的应用（使用规范化路径比较）
             deleted = False
@@ -3731,37 +3799,37 @@ class AppGridItem(ctk.CTkFrame):
                 
                 if config_path == target_path or app_name == target_name:
                     indices_to_delete.append(idx)
-                    print(f"[DEBUG] 找到匹配应用: 索引 {idx}, 应用名: {app_name}")
+                    logger.debug(f"找到匹配应用: 索引 {idx}, 应用名: {app_name}")
             
             # 从后向前删除，避免索引错乱
             for idx in reversed(indices_to_delete):
                 deleted_app = self.parent_window.app_config[current_category].pop(idx)
                 deleted = True
-                print(f"[DEBUG] 成功删除应用: {deleted_app.get('name')}")
+                logger.debug(f"成功删除应用: {deleted_app.get('name')}")
             
-            print(f"[DELETE DEBUG] 删除后应用数量: {len(self.parent_window.app_config[current_category])}")
-            print(f"[DELETE DEBUG] 删除后配置中的应用: {[a.get('name') for a in self.parent_window.app_config[current_category]]}")
+            logger.debug(f"删除后应用数量: {len(self.parent_window.app_config[current_category])}")
+            logger.debug(f"删除后配置中的应用: {[a.get('name') for a in self.parent_window.app_config[current_category]]}")
             
             if not deleted:
-                print(f"[DELETE DEBUG] ⚠️ 未找到匹配的应用")
+                logger.debug(f"⚠️ 未找到匹配的应用")
             else:
-                print(f"[DELETE DEBUG] ✅ 删除成功")
+                logger.debug(f"✅ 删除成功")
             
             # 清除缓存
-            print(f"[DELETE DEBUG] 清除缓存前: {len(self.parent_window.category_items_cache[current_category])}")
+            logger.debug(f"清除缓存前: {len(self.parent_window.category_items_cache[current_category])}")
             self.parent_window.category_items_cache[current_category].clear()
-            print(f"[DELETE DEBUG] 清除缓存后: {len(self.parent_window.category_items_cache[current_category])}")
+            logger.debug(f"清除缓存后: {len(self.parent_window.category_items_cache[current_category])}")
             
             # 刷新显示
-            print(f"[DELETE DEBUG] 开始刷新网格...")
+            logger.debug(f"开始刷新网格...")
             self.parent_window._refresh_grid(force=True)
             self.parent_window._save_config()
-            print(f"[DELETE DEBUG] 刷新完成")
-            print(f"="*60)
+            logger.debug(f"刷新完成")
+            logger.info("="*60)
             dialog.destroy()
         
         def on_confirm_click():
-            print(f"[DELETE DEBUG] 删除按钮被点击!")
+            logger.debug(f"删除按钮被点击!")
             confirm_delete()
         
         confirm_btn = ctk.CTkButton(
@@ -3985,16 +4053,25 @@ class AppGridItem(ctk.CTkFrame):
             self._load_icon_async()
 
     def _load_icon_async(self):
-        """异步加载图标"""
-        def load_icon():
+        """异步加载图标 - 使用线程池，避免阻塞UI主线程"""
+        def extract_icon():
+            """在线程池中执行图标提取（耗时操作）"""
             app_path = self.app_data.get("path", "")
             icon_path = self.app_data.get("icon_path", None)
             original_path = self.app_data.get("original_path", None)
-            
-            if app_path:
-                # 传递original_path参数，以便从原始快捷方式提取图标
-                icon_img = get_app_icon(app_path, icon_path, size=48, original_path=original_path)
-                if icon_img:
+
+            if not app_path:
+                return None
+            try:
+                return get_app_icon(app_path, icon_path, size=48, original_path=original_path)
+            except Exception as e:
+                logger.debug(f"图标提取失败 {app_path}: {e}")
+                return None
+
+        def update_ui(icon_img):
+            """回主线程更新UI"""
+            if icon_img:
+                try:
                     photo_img = ImageTk.PhotoImage(icon_img)
                     self.icon_label.configure(
                         text="",
@@ -4003,18 +4080,32 @@ class AppGridItem(ctk.CTkFrame):
                     )
                     self.icon_label.image = photo_img
                     self.icon_loaded = True
-        
-        # 使用 after() 在主循环空闲时执行，不阻塞UI
-        self.after_idle(load_icon)
+                except Exception as e:
+                    logger.debug(f"图标UI更新失败: {e}")
 
+        def on_done(future):
+            """线程池任务完成回调，回主线程"""
+            try:
+                icon_img = future.result()
+                self.after(0, lambda: update_ui(icon_img))
+            except Exception as e:
+                logger.debug(f"图标任务异常: {e}")
+
+        # 提交到线程池
+        if self.parent_window and hasattr(self.parent_window, 'icon_executor'):
+            future = self.parent_window.icon_executor.submit(extract_icon)
+            future.add_done_callback(on_done)
+        else:
+            # 降级：无线程池时用 after_idle
+            self.after_idle(lambda: update_ui(extract_icon()))
 
 # ============================================================
 # 入口
 # ============================================================
 def main():
-    print("[DEBUG] Starting Win11 Launchpad...")
+    logger.debug("Starting Win11 Launchpad...")
     app = LauncherWindow()
-    print("[DEBUG] App created, entering mainloop...")
+    logger.debug("App created, entering mainloop...")
     app.mainloop()
 
 
