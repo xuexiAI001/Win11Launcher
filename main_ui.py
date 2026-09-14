@@ -44,7 +44,8 @@ except ImportError as e:
 # ============================================================
 # 全局配置
 # ============================================================
-CATEGORIES = ["系统应用", "办公软件", "社交软件", "影音视频", "语言编程", "我的游戏"]
+DEFAULT_CATEGORIES = ["系统应用", "办公软件", "社交软件", "影音视频", "语言编程", "我的游戏"]
+CATEGORIES = DEFAULT_CATEGORIES  # 兼容别名，运行时使用 self.categories
 WINDOW_WIDTH = 1350
 WINDOW_HEIGHT = 850
 ICON_SIZE = 48
@@ -1075,14 +1076,15 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._center_window()
 
         # 数据
-        self.current_category = CATEGORIES[0]
-        self.app_config = {cat: [] for cat in CATEGORIES}
+        self.categories = list(DEFAULT_CATEGORIES)
+        self.current_category = self.categories[0]
+        self.app_config = {cat: [] for cat in self.categories}
         self.alpha_var = ctk.DoubleVar(value=0.96)
         # 加载保存的配置
         self._load_config()
 
         # 缓存：按分类保存AppGridItem列表
-        self.category_items_cache = {cat: [] for cat in CATEGORIES}
+        self.category_items_cache = {cat: [] for cat in self.categories}
 
         # 初始化UI
         self._setup_ui()
@@ -2076,7 +2078,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         """显示设置对话框"""
         dialog = ctk.CTkToplevel(self)
         dialog.title("设置")
-        dialog.geometry("500x500")
+        dialog.geometry("520x720")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
@@ -2084,8 +2086,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 居中
         dialog.update_idletasks()
         x = (dialog.winfo_screenwidth() - 500) // 2
-        y = (dialog.winfo_screenheight() - 500) // 2
-        dialog.geometry(f"500x500+{x}+{y}")
+        y = (dialog.winfo_screenheight() - 720) // 2
+        dialog.geometry(f"520x720+{x}+{y}")
 
         # 标题
         title_label = ctk.CTkLabel(
@@ -2194,6 +2196,56 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             text=""
         )
         autostart_switch.pack(side="left", padx=10)
+
+        # ===== 分类管理 =====
+        cat_section_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        cat_section_frame.pack(fill="x", padx=30, pady=(15, 5))
+
+        ctk.CTkLabel(
+            cat_section_frame,
+            text="分类管理",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(anchor="w", pady=(0, 5))
+
+        # 分类列表容器（可滚动）
+        cat_list_frame = ctk.CTkScrollableFrame(
+            dialog,
+            width=440,
+            height=180,
+            fg_color=("#F5F5F5", "#2A2A2A"),
+            corner_radius=8
+        )
+        cat_list_frame.pack(fill="x", padx=30, pady=(0, 8))
+        cat_list_frame._scrollbar.configure(width=0)
+
+        self._cat_list_frame = cat_list_frame
+        self._render_category_list(dialog)
+
+        # 添加分类输入区
+        add_cat_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        add_cat_frame.pack(fill="x", padx=30, pady=(0, 10))
+
+        self._new_cat_var = ctk.StringVar()
+        new_cat_entry = ctk.CTkEntry(
+            add_cat_frame,
+            placeholder_text="输入新分类名称...",
+            textvariable=self._new_cat_var,
+            height=32,
+            corner_radius=8
+        )
+        new_cat_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        new_cat_entry.bind("<Return>", lambda e: self._add_category_from_settings(dialog))
+
+        ctk.CTkButton(
+            add_cat_frame,
+            text="+ 添加",
+            width=70,
+            height=32,
+            corner_radius=8,
+            fg_color=("#0078D4", "#005A9E"),
+            command=lambda: self._add_category_from_settings(dialog)
+        ).pack(side="left")
+
 
         # 保存按钮
         save_btn = ctk.CTkButton(
@@ -2315,7 +2367,19 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     loaded_config = data.get("app_config", {})
-                    for cat in CATEGORIES:
+                    # 加载自定义分类列表
+                    if "categories" in data and isinstance(data["categories"], list):
+                        self.categories = data["categories"]
+                        # 确保 app_config 和 cache 包含所有分类
+                        for cat in self.categories:
+                            if cat not in self.app_config:
+                                self.app_config[cat] = []
+                            if cat not in self.category_items_cache:
+                                self.category_items_cache[cat] = []
+                        # 确保当前分类有效
+                        if self.current_category not in self.categories:
+                            self.current_category = self.categories[0]
+                    for cat in self.categories:
                         if cat in loaded_config and isinstance(loaded_config[cat], list):
                             self.app_config[cat] = loaded_config[cat]
                     # 加载透明度设置
@@ -2339,6 +2403,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 self.alpha_var = ctk.DoubleVar(value=0.96)
             data = {
                 "app_config": self.app_config,
+                "categories": self.categories,
                 "alpha": self.alpha_var.get()
             }
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -2368,6 +2433,257 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         self._show_message("设置已保存")
         dialog.destroy()
+
+    def _render_category_list(self, dialog):
+        """渲染设置界面中的分类列表"""
+        # 清空现有内容
+        for child in self._cat_list_frame.winfo_children():
+            child.destroy()
+
+        for idx, cat in enumerate(self.categories):
+            row_frame = ctk.CTkFrame(
+                self._cat_list_frame,
+                fg_color="transparent"
+            )
+            row_frame.pack(fill="x", pady=2)
+
+            app_count = len(self.app_config.get(cat, []))
+            name_label = ctk.CTkLabel(
+                row_frame,
+                text=f"  {cat}  ({app_count}个应用)",
+                font=ctk.CTkFont(size=13),
+                anchor="w",
+                width=220
+            )
+            name_label.pack(side="left", padx=(8, 0))
+
+            # 重命名按钮
+            rename_btn = ctk.CTkButton(
+                row_frame,
+                text="重命名",
+                width=60,
+                height=26,
+                corner_radius=6,
+                fg_color=("#E8E8E8", "#2D2D2D"),
+                text_color=("#1A1A1A", "#E0E0E0"),
+                command=lambda c=cat: self._rename_category_from_settings(c, dialog)
+            )
+            rename_btn.pack(side="right", padx=(4, 8))
+
+            # 删除按钮（第一个默认分类不允许删除）
+            if idx > 0:
+                del_btn = ctk.CTkButton(
+                    row_frame,
+                    text="删除",
+                    width=50,
+                    height=26,
+                    corner_radius=6,
+                    fg_color=("#E81123", "#C42B1C"),
+                    command=lambda c=cat: self._delete_category_from_settings(c, dialog)
+                )
+                del_btn.pack(side="right", padx=(4, 0))
+            else:
+                ctk.CTkLabel(
+                    row_frame,
+                    text="默认",
+                    font=ctk.CTkFont(size=11),
+                    text_color=("#999999", "#777777"),
+                    width=50
+                ).pack(side="right", padx=(4, 0))
+
+    def _add_category_from_settings(self, dialog):
+        """从设置界面添加新分类"""
+        new_name = self._new_cat_var.get().strip()
+        if not new_name:
+            self._show_message("请输入分类名称")
+            return
+        if new_name in self.categories:
+            self._show_message(f"分类 '{new_name}' 已存在")
+            return
+
+        # 添加分类
+        self.categories.append(new_name)
+        self.app_config[new_name] = []
+        self.category_items_cache[new_name] = []
+
+        # 保存配置
+        self._save_config()
+
+        # 刷新UI
+        self._render_category_list(dialog)
+        self._setup_tabs()
+        self._new_cat_var.set("")
+
+        self._show_message(f"已添加分类 '{new_name}'")
+        print(f"[CATEGORY] 添加分类: {new_name}")
+
+    def _delete_category_from_settings(self, cat_name, dialog):
+        """从设置界面删除分类"""
+        app_count = len(self.app_config.get(cat_name, []))
+
+        # 确认对话框
+        confirm = ctk.CTkToplevel(self)
+        confirm.title("确认删除")
+        confirm.geometry("360x180")
+        confirm.resizable(False, False)
+        confirm.transient(self)
+        confirm.grab_set()
+        confirm.update_idletasks()
+        cx = (confirm.winfo_screenwidth() - 360) // 2
+        cy = (confirm.winfo_screenheight() - 180) // 2
+        confirm.geometry(f"360x180+{cx}+{cy}")
+
+        msg = f"确定删除分类 '{cat_name}' 吗？"
+        if app_count > 0:
+            msg += f"\n该分类下有 {app_count} 个应用，将一并删除。"
+
+        ctk.CTkLabel(
+            confirm,
+            text=msg,
+            font=ctk.CTkFont(size=13),
+            justify="center"
+        ).pack(pady=25)
+
+        btn_frame = ctk.CTkFrame(confirm, fg_color="transparent")
+        btn_frame.pack()
+
+        def do_delete():
+            # 从列表移除
+            self.categories.remove(cat_name)
+            # 移除配置和缓存
+            if cat_name in self.app_config:
+                del self.app_config[cat_name]
+            if cat_name in self.category_items_cache:
+                for item in self.category_items_cache[cat_name]:
+                    try:
+                        item.destroy()
+                    except Exception:
+                        pass
+                del self.category_items_cache[cat_name]
+            # 如果当前分类被删除，切换到第一个
+            if self.current_category == cat_name:
+                self.current_category = self.categories[0]
+
+            self._save_config()
+            self._render_category_list(dialog)
+            self._setup_tabs()
+            self._refresh_grid(force=True)
+            confirm.destroy()
+            self._show_message(f"已删除分类 '{cat_name}'")
+            print(f"[CATEGORY] 删除分类: {cat_name}")
+
+        ctk.CTkButton(
+            btn_frame,
+            text="确定删除",
+            width=90,
+            height=30,
+            corner_radius=6,
+            fg_color=("#E81123", "#C42B1C"),
+            command=do_delete
+        ).pack(side="left", padx=10)
+
+        ctk.CTkButton(
+            btn_frame,
+            text="取消",
+            width=90,
+            height=30,
+            corner_radius=6,
+            fg_color=("#E8E8E8", "#2D2D2D"),
+            text_color=("#1A1A1A", "#E0E0E0"),
+            command=confirm.destroy
+        ).pack(side="left", padx=10)
+
+    def _rename_category_from_settings(self, old_name, dialog):
+        """从设置界面重命名分类"""
+        rename_dlg = ctk.CTkToplevel(self)
+        rename_dlg.title("重命名分类")
+        rename_dlg.geometry("340x160")
+        rename_dlg.resizable(False, False)
+        rename_dlg.transient(self)
+        rename_dlg.grab_set()
+        rename_dlg.update_idletasks()
+        cx = (rename_dlg.winfo_screenwidth() - 340) // 2
+        cy = (rename_dlg.winfo_screenheight() - 160) // 2
+        rename_dlg.geometry(f"340x160+{cx}+{cy}")
+
+        ctk.CTkLabel(
+            rename_dlg,
+            text=f"将 '{old_name}' 重命名为：",
+            font=ctk.CTkFont(size=13)
+        ).pack(pady=(20, 8))
+
+        new_name_var = ctk.StringVar(value=old_name)
+        entry = ctk.CTkEntry(
+            rename_dlg,
+            textvariable=new_name_var,
+            width=260,
+            height=32,
+            corner_radius=8
+        )
+        entry.pack(pady=(0, 10))
+        entry.select_range(0, 'end')
+        entry.focus_set()
+
+        def do_rename():
+            new_name = new_name_var.get().strip()
+            if not new_name:
+                return
+            if new_name == old_name:
+                rename_dlg.destroy()
+                return
+            if new_name in self.categories:
+                self._show_message(f"分类 '{new_name}' 已存在")
+                return
+
+            # 更新分类列表
+            idx = self.categories.index(old_name)
+            self.categories[idx] = new_name
+
+            # 更新 app_config 的 key
+            if old_name in self.app_config:
+                self.app_config[new_name] = self.app_config.pop(old_name)
+
+            # 更新 cache 的 key
+            if old_name in self.category_items_cache:
+                self.category_items_cache[new_name] = self.category_items_cache.pop(old_name)
+
+            # 更新当前分类
+            if self.current_category == old_name:
+                self.current_category = new_name
+
+            self._save_config()
+            self._render_category_list(dialog)
+            self._setup_tabs()
+            self._refresh_grid(force=True)
+            rename_dlg.destroy()
+            self._show_message(f"已重命名为 '{new_name}'")
+            print(f"[CATEGORY] 重命名: {old_name} -> {new_name}")
+
+        entry.bind("<Return>", lambda e: do_rename())
+
+        btn_frame = ctk.CTkFrame(rename_dlg, fg_color="transparent")
+        btn_frame.pack()
+
+        ctk.CTkButton(
+            btn_frame,
+            text="确定",
+            width=80,
+            height=30,
+            corner_radius=6,
+            fg_color=("#0078D4", "#005A9E"),
+            command=do_rename
+        ).pack(side="left", padx=8)
+
+        ctk.CTkButton(
+            btn_frame,
+            text="取消",
+            width=80,
+            height=30,
+            corner_radius=6,
+            fg_color=("#E8E8E8", "#2D2D2D"),
+            text_color=("#1A1A1A", "#E0E0E0"),
+            command=rename_dlg.destroy
+        ).pack(side="left", padx=8)
 
     def _center_window(self):
         """窗口居中"""
@@ -2434,24 +2750,28 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             self.geometry(f"+{x}+{y}")
 
     def _setup_tabs(self):
-        """分类标签页 - 居中显示"""
-        tabs_frame = ctk.CTkFrame(
+        """分类标签页 - 居中显示（支持重复调用重建）"""
+        # 销毁旧的Tab框架（如果存在）
+        if hasattr(self, '_tabs_frame') and self._tabs_frame.winfo_exists():
+            self._tabs_frame.destroy()
+
+        self._tabs_frame = ctk.CTkFrame(
             self.main_frame,
             fg_color="transparent"
         )
-        tabs_frame.pack(fill="x", padx=12, pady=8)
-        
+        self._tabs_frame.pack(fill="x", padx=12, pady=8)
+
         # 创建内部容器用于居中按钮
-        inner_frame = ctk.CTkFrame(
-            tabs_frame,
+        self._tabs_inner = ctk.CTkFrame(
+            self._tabs_frame,
             fg_color="transparent"
         )
-        inner_frame.pack(side="top", anchor="center")
+        self._tabs_inner.pack(side="top", anchor="center")
 
         self.tab_buttons = {}
-        for cat in CATEGORIES:
+        for cat in self.categories:
             btn = ctk.CTkButton(
-                inner_frame,
+                self._tabs_inner,
                 text=cat,
                 width=100,
                 height=36,
@@ -3002,7 +3322,7 @@ class AppGridItem(ctk.CTkFrame):
             submenu.overrideredirect(True)
             submenu.attributes("-topmost", True)
             
-            submenu_height = len(CATEGORIES)*28 + 8
+            submenu_height = len(self.parent_window.categories)*28 + 8
             submenu_x = x + 165
             submenu_y = y + 50
             
@@ -3016,7 +3336,7 @@ class AppGridItem(ctk.CTkFrame):
             submenu_frame = ctk.CTkFrame(submenu, fg_color=bg_color, corner_radius=8)
             submenu_frame.pack(fill="both", expand=True, padx=3, pady=3)
 
-            for cat in CATEGORIES:
+            for cat in self.parent_window.categories:
                 btn = ctk.CTkButton(
                     submenu_frame,
                     text=cat,
