@@ -2078,7 +2078,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         """显示设置对话框"""
         dialog = ctk.CTkToplevel(self)
         dialog.title("设置")
-        dialog.geometry("520x720")
+        dialog.geometry("500x500")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
@@ -2086,8 +2086,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 居中
         dialog.update_idletasks()
         x = (dialog.winfo_screenwidth() - 500) // 2
-        y = (dialog.winfo_screenheight() - 720) // 2
-        dialog.geometry(f"520x720+{x}+{y}")
+        y = (dialog.winfo_screenheight() - 500) // 2
+        dialog.geometry(f"500x500+{x}+{y}")
 
         # 标题
         title_label = ctk.CTkLabel(
@@ -2197,55 +2197,20 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         )
         autostart_switch.pack(side="left", padx=10)
 
-        # ===== 分类管理 =====
-        cat_section_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        cat_section_frame.pack(fill="x", padx=30, pady=(15, 5))
-
-        ctk.CTkLabel(
-            cat_section_frame,
-            text="分类管理",
-            font=ctk.CTkFont(size=14, weight="bold")
-        ).pack(anchor="w", pady=(0, 5))
-
-        # 分类列表容器（可滚动）
-        cat_list_frame = ctk.CTkScrollableFrame(
-            dialog,
-            width=440,
-            height=180,
-            fg_color=("#F5F5F5", "#2A2A2A"),
-            corner_radius=8
-        )
-        cat_list_frame.pack(fill="x", padx=30, pady=(0, 8))
-        cat_list_frame._scrollbar.configure(width=0)
-
-        self._cat_list_frame = cat_list_frame
-        self._render_category_list(dialog)
-
-        # 添加分类输入区
-        add_cat_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        add_cat_frame.pack(fill="x", padx=30, pady=(0, 10))
-
-        self._new_cat_var = ctk.StringVar()
-        new_cat_entry = ctk.CTkEntry(
-            add_cat_frame,
-            placeholder_text="输入新分类名称...",
-            textvariable=self._new_cat_var,
-            height=32,
-            corner_radius=8
-        )
-        new_cat_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
-        new_cat_entry.bind("<Return>", lambda e: self._add_category_from_settings(dialog))
+        # 分类管理按钮（点击弹出独立窗口）
+        cat_btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        cat_btn_frame.pack(fill="x", padx=30, pady=(15, 5))
 
         ctk.CTkButton(
-            add_cat_frame,
-            text="+ 添加",
-            width=70,
-            height=32,
+            cat_btn_frame,
+            text="管理分类...",
+            width=440,
+            height=36,
             corner_radius=8,
-            fg_color=("#0078D4", "#005A9E"),
-            command=lambda: self._add_category_from_settings(dialog)
-        ).pack(side="left")
-
+            fg_color=("#E8E8E8", "#2D2D2D"),
+            text_color=("#1A1A1A", "#E0E0E0"),
+            command=self._show_category_manager
+        ).pack()
 
         # 保存按钮
         save_btn = ctk.CTkButton(
@@ -2434,7 +2399,78 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._show_message("设置已保存")
         dialog.destroy()
 
-    def _render_category_list(self, dialog):
+    def _show_category_manager(self):
+        """弹出独立的分类管理对话框"""
+        cat_dialog = ctk.CTkToplevel(self)
+        cat_dialog.title("分类管理")
+        cat_dialog.geometry("460x440")
+        cat_dialog.resizable(False, False)
+        cat_dialog.transient(self)
+        cat_dialog.grab_set()
+        cat_dialog.update_idletasks()
+        cx = (cat_dialog.winfo_screenwidth() - 460) // 2
+        cy = (cat_dialog.winfo_screenheight() - 440) // 2
+        cat_dialog.geometry(f"460x440+{cx}+{cy}")
+
+        ctk.CTkLabel(
+            cat_dialog,
+            text="分类管理",
+            font=ctk.CTkFont(size=18, weight="bold")
+        ).pack(pady=(15, 8))
+
+        # 分类列表容器（可滚动）
+        cat_list_frame = ctk.CTkScrollableFrame(
+            cat_dialog,
+            width=400,
+            height=260,
+            fg_color=("#F5F5F5", "#2A2A2A"),
+            corner_radius=8
+        )
+        cat_list_frame.pack(fill="x", padx=20, pady=(0, 10))
+        cat_list_frame._scrollbar.configure(width=0)
+
+        self._cat_list_frame = cat_list_frame
+        self._cat_dialog = cat_dialog
+        self._render_category_list()
+
+        # 添加分类输入区
+        add_frame = ctk.CTkFrame(cat_dialog, fg_color="transparent")
+        add_frame.pack(fill="x", padx=20, pady=(0, 10))
+
+        self._new_cat_var = ctk.StringVar()
+        entry = ctk.CTkEntry(
+            add_frame,
+            placeholder_text="输入新分类名称...",
+            textvariable=self._new_cat_var,
+            height=32,
+            corner_radius=8
+        )
+        entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        entry.bind("<Return>", lambda e: self._add_category_from_settings())
+
+        ctk.CTkButton(
+            add_frame,
+            text="+ 添加",
+            width=70,
+            height=32,
+            corner_radius=8,
+            fg_color=("#0078D4", "#005A9E"),
+            command=self._add_category_from_settings
+        ).pack(side="left")
+
+        # 关闭按钮
+        ctk.CTkButton(
+            cat_dialog,
+            text="关闭",
+            width=100,
+            height=32,
+            corner_radius=8,
+            fg_color=("#E8E8E8", "#2D2D2D"),
+            text_color=("#1A1A1A", "#E0E0E0"),
+            command=cat_dialog.destroy
+        ).pack(pady=(5, 10))
+
+    def _render_category_list(self):
         """渲染设置界面中的分类列表"""
         # 清空现有内容
         for child in self._cat_list_frame.winfo_children():
@@ -2466,7 +2502,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 corner_radius=6,
                 fg_color=("#E8E8E8", "#2D2D2D"),
                 text_color=("#1A1A1A", "#E0E0E0"),
-                command=lambda c=cat: self._rename_category_from_settings(c, dialog)
+                command=lambda c=cat: self._rename_category_from_settings(c)
             )
             rename_btn.pack(side="right", padx=(4, 8))
 
@@ -2479,7 +2515,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     height=26,
                     corner_radius=6,
                     fg_color=("#E81123", "#C42B1C"),
-                    command=lambda c=cat: self._delete_category_from_settings(c, dialog)
+                    command=lambda c=cat: self._delete_category_from_settings(c)
                 )
                 del_btn.pack(side="right", padx=(4, 0))
             else:
@@ -2491,7 +2527,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     width=50
                 ).pack(side="right", padx=(4, 0))
 
-    def _add_category_from_settings(self, dialog):
+    def _add_category_from_settings(self):
         """从设置界面添加新分类"""
         new_name = self._new_cat_var.get().strip()
         if not new_name:
@@ -2510,14 +2546,14 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._save_config()
 
         # 刷新UI
-        self._render_category_list(dialog)
+        self._render_category_list()
         self._setup_tabs()
         self._new_cat_var.set("")
 
         self._show_message(f"已添加分类 '{new_name}'")
         print(f"[CATEGORY] 添加分类: {new_name}")
 
-    def _delete_category_from_settings(self, cat_name, dialog):
+    def _delete_category_from_settings(self, cat_name):
         """从设置界面删除分类"""
         app_count = len(self.app_config.get(cat_name, []))
 
@@ -2565,7 +2601,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 self.current_category = self.categories[0]
 
             self._save_config()
-            self._render_category_list(dialog)
+            self._render_category_list()
             self._setup_tabs()
             self._refresh_grid(force=True)
             confirm.destroy()
@@ -2593,7 +2629,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             command=confirm.destroy
         ).pack(side="left", padx=10)
 
-    def _rename_category_from_settings(self, old_name, dialog):
+    def _rename_category_from_settings(self, old_name):
         """从设置界面重命名分类"""
         rename_dlg = ctk.CTkToplevel(self)
         rename_dlg.title("重命名分类")
@@ -2652,7 +2688,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 self.current_category = new_name
 
             self._save_config()
-            self._render_category_list(dialog)
+            self._render_category_list()
             self._setup_tabs()
             self._refresh_grid(force=True)
             rename_dlg.destroy()
