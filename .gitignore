@@ -1,0 +1,35 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 打包输出
+build/
+dist/
+*.egg-info/
+
+# 图标缓存（运行时生成）
+icon_cache/
+
+# 备份和临时文件
+*.bak
+*.bak_*
+*.tmp
+*.log
+_patch_*.py
+_rollback.py
+_verify.py
+_final_cleanup.py
+
+# IDE / 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+Thumbs.db
+Desktop.ini
+.DS_Store

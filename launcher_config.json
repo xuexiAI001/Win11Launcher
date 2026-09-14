@@ -1,0 +1,289 @@
+{
+  "app_config": {
+    "系统应用": [
+      {
+        "name": "时光游戏",
+        "path": "C:\\Program Files\\tmgame\\tmgame.exe",
+        "lnk_path": "C:/Users/Public/Desktop/时光游戏.lnk",
+        "icon_path": "C:\\Program Files\\tmgame\\tmgame.exe"
+      },
+      {
+        "name": "DevEco Studio",
+        "path": "C:\\Program Files\\Huawei\\DevEco Studio\\bin\\devecostudio64.exe",
+        "lnk_path": "C:/Users/Public/Desktop/DevEco Studio.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "双人成行（单机或同屏联机）",
+        "path": "D:\\mystream\\ItTakes\\Nuts\\Binaries\\Win64\\ItTakesTwo.exe",
+        "lnk_path": "C:/Users/59260/Desktop/双人成行（单机或同屏联机）.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "孤岛惊魂4",
+        "path": "D:\\mystream\\Gdjhu4\\FarCry4.exe",
+        "lnk_path": "C:/Users/59260/Desktop/孤岛惊魂4.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "DX修复工具（必装）",
+        "path": "D:\\mystream\\DirectXRepair\\DirectX Repair.exe",
+        "lnk_path": "C:/Users/59260/Desktop/DX修复工具（必装）.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "相机",
+        "path": "C:\\Users\\59260\\Desktop\\相机.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "天气",
+        "path": "C:\\Users\\59260\\Desktop\\天气.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "NVIDIA App",
+        "path": "C:\\Users\\59260\\Desktop\\NVIDIA App.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Game Bar",
+        "path": "C:\\Users\\59260\\Desktop\\Game Bar.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "媒体播放器",
+        "path": "C:\\Users\\59260\\Desktop\\媒体播放器.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Outlook",
+        "path": "C:\\Users\\59260\\Desktop\\Outlook.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Windows 安全中心",
+        "path": "C:\\Users\\59260\\Desktop\\Windows 安全中心.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Microsoft Store",
+        "path": "C:\\Users\\59260\\Desktop\\Microsoft Store.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "设置",
+        "path": "C:\\Users\\59260\\Desktop\\设置.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Xbox",
+        "path": "C:\\Users\\59260\\Desktop\\Xbox.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "WPS Office",
+        "path": "E:\\Program Files\\WPS Office\\ksolaunch.exe",
+        "lnk_path": "C:/Users/59260/Desktop/WPS Office.lnk",
+        "icon_path": "E:\\Program Files\\WPS Office\\ksolaunch.exe"
+      }
+    ],
+    "办公软件": [
+      {
+        "name": "腾讯视频",
+        "path": "E:\\Program Files\\Tencent\\QQLive\\QQLive.exe",
+        "lnk_path": "C:/Users/Public/Desktop/腾讯视频.lnk",
+        "icon_path": "E:\\Program Files\\Tencent\\QQLive\\QQLive.exe"
+      },
+      {
+        "name": "百度网盘",
+        "path": "E:\\Program Files\\BaiduNetdisk\\BaiduNetdisk.exe",
+        "lnk_path": "C:/Users/59260/Desktop/百度网盘.lnk",
+        "icon_path": "E:\\Program Files\\BaiduNetdisk\\BaiduNetdisk.exe"
+      },
+      {
+        "name": "一修大师修改器",
+        "path": "D:\\mystream\\yx\\setup_XiuMaster.exe",
+        "lnk_path": "C:/Users/59260/Desktop/一修大师修改器.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "一修大师",
+        "path": "D:\\mystream\\yx\\XiuMaster\\XiuMaster.exe",
+        "lnk_path": "C:/Users/59260/Desktop/一修大师.lnk",
+        "icon_path": "D:\\mystream\\yx\\XiuMaster\\XiuMaster.exe"
+      },
+      {
+        "name": "QQ音乐",
+        "path": "C:\\Program Files (x86)\\Tencent\\QQMusic\\QQMusic.exe",
+        "lnk_path": "C:/Users/Public/Desktop/QQ音乐.lnk",
+        "icon_path": "C:\\Program Files (x86)\\Tencent\\QQMusic\\QQMusic.exe"
+      },
+      {
+        "name": "手机连接",
+        "path": "C:\\Users\\59260\\Desktop\\手机连接.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "开发人员主页",
+        "path": "C:\\Users\\59260\\Desktop\\开发人员主页.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Microsoft Clipchamp",
+        "path": "C:\\Users\\59260\\Desktop\\Microsoft Clipchamp.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Blend for Visual Studio",
+        "path": "C:\\Users\\59260\\Desktop\\Blend for Visual Studio.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Family",
+        "path": "C:\\Users\\59260\\Desktop\\Family.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "记事本",
+        "path": "C:\\Users\\59260\\Desktop\\记事本.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "反馈中心",
+        "path": "C:\\Users\\59260\\Desktop\\反馈中心.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      }
+    ],
+    "社交软件": [
+      {
+        "name": "Trae CN",
+        "path": "C:\\Users\\59260\\AppData\\Local\\Programs\\Trae CN\\Trae CN.exe",
+        "lnk_path": "C:/Users/59260/Desktop/Trae CN.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "最后生还者：第一部",
+        "path": "D:\\mystream\\TIzhs\\tlou-i.exe",
+        "lnk_path": "C:/Users/59260/Desktop/最后生还者：第一部.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "VC修复工具（必装）",
+        "path": "D:\\mystream\\VC\\VC.exe",
+        "lnk_path": "C:/Users/59260/Desktop/VC修复工具（必装）.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "AWayOut.exe - 快捷方式",
+        "path": "D:\\mystream\\逃出生天\\T12\\Haze1\\Binaries\\Win64\\AWayOut.exe",
+        "lnk_path": "C:/Users/59260/Desktop/AWayOut.exe - 快捷方式.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "Visual Studio",
+        "path": "C:\\Users\\59260\\Desktop\\Visual Studio.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "荐片高清影音",
+        "path": "E:\\Program Files\\jianpian\\jianpian.exe",
+        "lnk_path": "C:/Users/59260/Desktop/荐片高清影音.lnk",
+        "icon_path": "E:\\Program Files\\jianpian\\jianpian.exe"
+      },
+      {
+        "name": "Microsoft To Do",
+        "path": "C:\\Users\\59260\\Desktop\\Microsoft To Do.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Microsoft Store (2)",
+        "path": "C:\\Users\\59260\\Desktop\\Microsoft Store (2).lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "快速助手",
+        "path": "C:\\Users\\59260\\Desktop\\快速助手.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "Solitaire & Casual Games",
+        "path": "C:\\Users\\59260\\Desktop\\Solitaire & Casual Games.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "计算器",
+        "path": "C:\\Users\\59260\\Desktop\\计算器.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "照片",
+        "path": "C:\\Users\\59260\\Desktop\\照片.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "截图工具",
+        "path": "C:\\Users\\59260\\Desktop\\截图工具.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "画图",
+        "path": "C:\\Users\\59260\\Desktop\\画图.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "时钟",
+        "path": "C:\\Users\\59260\\Desktop\\时钟.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "机械革命电竞控制台",
+        "path": "C:\\Users\\Public\\Desktop\\机械革命电竞控制台.lnk",
+        "lnk_path": null,
+        "icon_path": null
+      },
+      {
+        "name": "微信",
+        "path": "E:\\Program Files\\Tencent\\Weixin\\Weixin.exe",
+        "lnk_path": "C:/Users/Public/Desktop/微信.lnk",
+        "icon_path": ""
+      },
+      {
+        "name": "QQ",
+        "path": "E:\\Program Files\\Tencent\\QQNT\\QQ.exe",
+        "lnk_path": "C:/Users/Public/Desktop/QQ.lnk",
+        "icon_path": "E:\\Program Files\\Tencent\\QQNT\\QQ.exe"
+      }
+    ],
+    "影音视频": [],
+    "语言编程": [],
+    "我的游戏": []
+  }
+}
