@@ -284,7 +284,7 @@ class AppGridItem(ctk.CTkFrame):
         add_sep()
         add_item("删除文件夹", self._delete_folder, icon="✕")
 
-        width = 130
+        width = 150
 
         # 先更新布局，获取实际渲染高度
         menu_window.update_idletasks()
@@ -555,7 +555,7 @@ class AppGridItem(ctk.CTkFrame):
             screen_height = submenu.winfo_screenheight()
             if submenu_y + submenu_height > screen_height:
                 submenu_y = submenu_y - submenu_height - 50
-            submenu.geometry(f"120x{submenu_height}+{submenu_x}+{submenu_y}")
+            submenu.geometry(f"140x{submenu_height}+{submenu_x}+{submenu_y}")
             submenu.update_idletasks()
             _enable_menu_shadow(submenu)
 
@@ -699,7 +699,7 @@ class AppGridItem(ctk.CTkFrame):
             screen_h = folder_submenu.winfo_screenheight()
             if submenu_y + submenu_height > screen_h:
                 submenu_y = submenu_y - submenu_height - 80
-            folder_submenu.geometry(f"140x{submenu_height}+{submenu_x}+{submenu_y}")
+            folder_submenu.geometry(f"160x{submenu_height}+{submenu_x}+{submenu_y}")
             folder_submenu.update_idletasks()
             _enable_menu_shadow(folder_submenu)
 
@@ -768,7 +768,7 @@ class AppGridItem(ctk.CTkFrame):
         add_menu_item("打开文件位置", self._open_file_location, icon="⊞")
         add_menu_item("属性", self._show_properties, icon="ⓘ")
 
-        width = 170
+        width = 195
 
         # 先更新布局，获取实际渲染高度
         menu_window.update_idletasks()

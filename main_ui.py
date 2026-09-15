@@ -2415,7 +2415,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         )
         btn.pack(fill="x", padx=4, pady=1)
 
-        width = 130
+        width = 150
 
         # 先更新布局，获取实际渲染高度
         menu_window.update_idletasks()
