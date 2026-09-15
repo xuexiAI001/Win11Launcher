@@ -2571,7 +2571,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         return None
 
     def _show_scanned_apps(self):
-        """显示已扫描的开始菜单应用列表（带异步图标加载）"""
+        """显示已扫描的开始菜单应用列表（带复选框批量添加）"""
         try:
             from PIL import ImageTk
             from app_info import get_app_info
@@ -2583,25 +2583,54 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
             dlg = ctk.CTkToplevel(self)
             dlg.title(f"已扫描应用（共 {len(apps)} 个）")
-            dlg.geometry("420x550")
+            dlg.geometry("440x600")
             dlg.resizable(False, False)
             dlg.transient(self)
             dlg.grab_set()
             dlg.update_idletasks()
-            x = (dlg.winfo_screenwidth() - 420) // 2
-            y = (dlg.winfo_screenheight() - 550) // 2
-            dlg.geometry(f"420x550+{x}+{y}")
+            x = (dlg.winfo_screenwidth() - 440) // 2
+            y = (dlg.winfo_screenheight() - 600) // 2
+            dlg.geometry(f"440x600+{x}+{y}")
 
-            ctk.CTkLabel(dlg, text=f"开始菜单共扫描到 {len(apps)} 个应用（图标异步加载）", font=ctk.CTkFont(size=13, weight="bold")).pack(pady=10)
+            # 顶部信息
+            top_frame = ctk.CTkFrame(dlg, fg_color="transparent")
+            top_frame.pack(fill="x", padx=15, pady=(10, 5))
 
+            count_label = ctk.CTkLabel(top_frame, text=f"共 {len(apps)} 个应用，已选中 0 个", font=ctk.CTkFont(size=13, weight="bold"))
+            count_label.pack(side="left")
+
+            # 全选/取消全选
+            btn_frame = ctk.CTkFrame(dlg, fg_color="transparent")
+            btn_frame.pack(fill="x", padx=15, pady=(0, 5))
+
+            checkbox_vars = {}
+            item_frames = {}
+
+            def update_count():
+                selected = sum(1 for v in checkbox_vars.values() if v.get())
+                count_label.configure(text=f"共 {len(apps)} 个应用，已选中 {selected} 个")
+                add_btn.configure(state="normal" if selected > 0 else "disabled")
+
+            def select_all():
+                for v in checkbox_vars.values():
+                    v.set(True)
+                update_count()
+
+            def deselect_all():
+                for v in checkbox_vars.values():
+                    v.set(False)
+                update_count()
+
+            ctk.CTkButton(btn_frame, text="全选", width=80, height=28, fg_color=("#E8E8E8", "#2D2D2D"), text_color=("#1A1A1A", "#E0E0E0"), command=select_all).pack(side="left", padx=(0, 8))
+            ctk.CTkButton(btn_frame, text="取消全选", width=80, height=28, fg_color=("#E8E8E8", "#2D2D2D"), text_color=("#1A1A1A", "#E0E0E0"), command=deselect_all).pack(side="left")
+
+            # 可滚动列表
             scroll_frame = ctk.CTkScrollableFrame(dlg, fg_color="transparent")
             scroll_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-            # 存储图标引用防止GC
             icon_refs = []
 
             def load_icon_async(app_name, icon_label):
-                """异步加载单个应用图标"""
                 try:
                     lnk_path = self._find_lnk_by_name(app_name)
                     if not lnk_path:
@@ -2613,7 +2642,6 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     if icon_img:
                         photo = ImageTk.PhotoImage(icon_img)
                         icon_refs.append(photo)
-                        # 回到主线程更新UI
                         self.after(0, lambda: icon_label.configure(image=photo, text=""))
                 except Exception as e:
                     logger.debug(f"加载应用图标失败 {app_name}: {e}")
@@ -2622,23 +2650,68 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 item = ctk.CTkFrame(scroll_frame, fg_color="transparent", height=32)
                 item.pack(fill="x", pady=1)
 
-                # 图标标签（初始为空）
+                var = ctk.BooleanVar(value=False)
+                checkbox_vars[app_name] = var
+
+                cb = ctk.CTkCheckBox(item, text="", variable=var, width=20, height=20, command=update_count)
+                cb.pack(side="left", padx=(5, 5))
+
                 icon_label = ctk.CTkLabel(item, text="", width=28, height=28)
-                icon_label.pack(side="left", padx=(5, 8))
+                icon_label.pack(side="left", padx=(0, 5))
 
-                # 编号和名称
-                ctk.CTkLabel(
-                    item,
-                    text=f"{idx:3d}.  {app_name}",
-                    font=ctk.CTkFont(size=12),
-                    anchor="w"
-                ).pack(side="left", padx=2)
+                ctk.CTkLabel(item, text=f"{idx:3d}.  {app_name}", font=ctk.CTkFont(size=12), anchor="w").pack(side="left", padx=2)
 
-                # 提交到线程池异步加载图标
                 if hasattr(self, 'icon_executor'):
                     self.icon_executor.submit(load_icon_async, app_name, icon_label)
 
-            ctk.CTkButton(dlg, text="关闭", width=100, height=32, fg_color=("#0078D4", "#005A9E"), command=dlg.destroy).pack(pady=10)
+            # 底部分类选择和添加按钮
+            bottom_frame = ctk.CTkFrame(dlg, fg_color="transparent")
+            bottom_frame.pack(fill="x", padx=15, pady=(0, 10))
+
+            ctk.CTkLabel(bottom_frame, text="添加到分类：", font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 8))
+
+            selected_cat = ctk.StringVar(value=self.categories[0])
+            cat_menu = ctk.CTkOptionMenu(bottom_frame, values=self.categories, variable=selected_cat, width=120, height=30)
+            cat_menu.pack(side="left", padx=(0, 10))
+
+            def batch_add():
+                selected_apps = [name for name, v in checkbox_vars.items() if v.get()]
+                if not selected_apps:
+                    return
+
+                cat = selected_cat.get()
+                added = 0
+                skipped = 0
+
+                for app_name in selected_apps:
+                    lnk_path = self._find_lnk_by_name(app_name)
+                    if not lnk_path:
+                        skipped += 1
+                        continue
+                    app_info = get_app_info(lnk_path)
+                    if not app_info or not app_info.get("path"):
+                        skipped += 1
+                        continue
+                    # 检查是否已存在
+                    exists = any(a.get("path") == app_info["path"] for a in self.app_config.get(cat, []))
+                    if exists:
+                        skipped += 1
+                        continue
+                    self.app_config[cat].append(app_info)
+                    added += 1
+
+                self.category_items_cache[cat].clear()
+                self._save_config()
+                if cat == self.current_category:
+                    self._refresh_grid(force=True)
+
+                self._show_message(f"成功添加 {added} 个，跳过 {skipped} 个已存在")
+                dlg.destroy()
+
+            add_btn = ctk.CTkButton(bottom_frame, text="添加选中", width=100, height=30, fg_color=("#0078D4", "#005A9E"), state="disabled", command=batch_add)
+            add_btn.pack(side="left")
+
+            ctk.CTkButton(bottom_frame, text="关闭", width=80, height=30, fg_color=("#E8E8E8", "#2D2D2D"), text_color=("#1A1A1A", "#E0E0E0"), command=dlg.destroy).pack(side="left", padx=(8, 0))
 
             # 保存到文件
             try:
@@ -2648,9 +2721,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     f.write("=" * 50 + "\n\n")
                     for idx, app_name in enumerate(apps, 1):
                         f.write(f"{idx:3d}. {app_name}\n")
-                logger.debug(f"应用列表已保存到: {list_file}")
             except Exception as e:
                 logger.debug(f"保存应用列表失败: {e}")
+
         except Exception as e:
             logger.debug(f"显示已扫描应用失败: {e}")
 
