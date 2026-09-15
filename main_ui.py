@@ -1227,7 +1227,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         dialog = ctk.CTkToplevel(self)
         apply_acrylic(dialog)
         dialog.title("设置")
-        dialog.geometry("500x420")
+        dialog.geometry("500x560")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
@@ -1235,8 +1235,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 居中
         dialog.update_idletasks()
         x = (dialog.winfo_screenwidth() - 500) // 2
-        y = (dialog.winfo_screenheight() - 420) // 2
-        dialog.geometry(f"500x420+{x}+{y}")
+        y = (dialog.winfo_screenheight() - 560) // 2
+        dialog.geometry(f"500x560+{x}+{y}")
 
         # 标题
         title_label = ctk.CTkLabel(
