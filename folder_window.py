@@ -48,11 +48,13 @@ class FolderWindow(ctk.CTkToplevel):
         self.attributes("-topmost", True)
         self.lift()
 
-        # 计算目标位置
+        # 计算目标位置：左上角对齐图标附近（从图标位置展开，非居中）
         self.update_idletasks()
         if self._anchor_x is not None and self._anchor_y is not None:
-            self._target_x = self._anchor_x - self._target_w // 2
-            self._target_y = self._anchor_y - self._target_h // 2
+            # 窗口左上角在图标中心的左下方，从图标位置展开
+            self._target_x = self._anchor_x - 50
+            self._target_y = self._anchor_y - 15
+            # 屏幕边界检测
             if self._target_x < 10:
                 self._target_x = 10
             if self._target_x + self._target_w > self.winfo_screenwidth() - 10:
