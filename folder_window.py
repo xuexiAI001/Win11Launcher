@@ -108,10 +108,6 @@ class FolderWindow(ctk.CTkToplevel):
 
         self._render_apps()
 
-        # 初始隐藏内容，等动画完成后淡入
-        if self._anchor_x is not None:
-            self._content_frame.pack_forget()
-
         # 关闭时从主窗口字典中移除
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -122,7 +118,6 @@ class FolderWindow(ctk.CTkToplevel):
         """iOS风格展开动画：从图标位置放大到目标大小"""
         try:
             if self._anchor_x is None:
-                self._content_frame.pack(fill="both", expand=True)
                 self.focus_force()
                 self.after(100, self._ensure_on_top)
                 return
@@ -141,9 +136,6 @@ class FolderWindow(ctk.CTkToplevel):
                 if frame >= frames:
                     self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                     self.attributes('-alpha', self._target_alpha)
-                    # 内容淡入
-                    self._content_frame.pack(fill="both", expand=True)
-                    self._fade_in_content()
                     self.focus_force()
                     self.after(100, self._ensure_on_top)
                     return
