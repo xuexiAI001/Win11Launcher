@@ -98,10 +98,10 @@ class FolderWindow(ctk.CTkToplevel):
             text_color=("#888888", "#666666")
         ).pack(side="left")
 
-        # 滚动区域
-        # 内容容器（用于淡入动画）
-        self._content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        # 内容区域（固定大小，避免窗口缩放时内容重排导致卡帧）
+        self._content_frame = ctk.CTkFrame(self, fg_color="transparent", width=480, height=335)
         self._content_frame.pack(fill="both", expand=True)
+        self._content_frame.pack_propagate(False)
 
         self.scroll_frame = ctk.CTkScrollableFrame(self._content_frame, fg_color="transparent")
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
@@ -157,12 +157,6 @@ class FolderWindow(ctk.CTkToplevel):
                 if idx >= frames:
                     self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                     self.attributes('-alpha', self._target_alpha)
-                    # 恢复内容布局
-                    try:
-                        self._content_frame.pack_propagate(True)
-                        self._content_frame.configure(width=0, height=0)
-                    except Exception:
-                        pass
                     self.focus_force()
                     self.after(100, self._ensure_on_top)
                     return
@@ -175,11 +169,6 @@ class FolderWindow(ctk.CTkToplevel):
             animate(0)
         except Exception as e:
             logger.debug(f"展开动画失败: {e}")
-            try:
-                self._content_frame.pack_propagate(True)
-                self._content_frame.configure(width=0, height=0)
-            except Exception:
-                pass
             try:
                 self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                 self.attributes('-alpha', self._target_alpha)
