@@ -221,6 +221,8 @@ class AppGridItem(ctk.CTkFrame):
         menu_window.overrideredirect(True)
         menu_window.attributes("-topmost", True)
         menu_window.attributes("-alpha", 0.95)
+        menu_window.configure(bg="#000001")
+        menu_window.attributes("-transparentcolor", "#000001")
 
         if not hasattr(root, '_global_context_menus'):
             root._global_context_menus = []
@@ -451,6 +453,7 @@ class AppGridItem(ctk.CTkFrame):
         menu_window = ctk.CTkToplevel(self)
         menu_window.overrideredirect(True)
         menu_window.attributes("-topmost", True)
+        menu_window.configure(bg="#000001")
         menu_window.attributes("-transparentcolor", "#000001")
         menu_window.attributes("-alpha", 0.95)
 
@@ -484,6 +487,9 @@ class AppGridItem(ctk.CTkFrame):
             submenu = ctk.CTkToplevel(self)
             submenu.overrideredirect(True)
             submenu.attributes("-topmost", True)
+            submenu.configure(bg="#000001")
+            submenu.attributes("-transparentcolor", "#000001")
+            submenu.attributes("-alpha", 0.95)
 
             submenu_height = len(self.parent_window.categories) * 28 + 8
             submenu_x = x + 165
@@ -605,6 +611,8 @@ class AppGridItem(ctk.CTkFrame):
             folder_submenu = ctk.CTkToplevel(self)
             folder_submenu.overrideredirect(True)
             folder_submenu.attributes("-topmost", True)
+            folder_submenu.configure(bg="#000001")
+            folder_submenu.attributes("-transparentcolor", "#000001")
             folder_submenu.attributes("-alpha", 0.95)
 
             folders = self.parent_window._get_folders() if self.parent_window else []
