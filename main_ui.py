@@ -2571,36 +2571,76 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         return None
 
     def _show_scanned_apps(self):
-        """显示已扫描的开始菜单应用列表"""
+        """显示已扫描的开始菜单应用列表（带异步图标加载）"""
         try:
+            from PIL import ImageTk
+            from app_info import get_app_info
+            from icon_extractor import get_app_icon
+
             apps = sorted(getattr(self, '_known_installed_apps', set()))
             if not apps:
                 apps = sorted(self._scan_start_menu_apps())
 
             dlg = ctk.CTkToplevel(self)
             dlg.title(f"已扫描应用（共 {len(apps)} 个）")
-            dlg.geometry("400x500")
+            dlg.geometry("420x550")
             dlg.resizable(False, False)
             dlg.transient(self)
             dlg.grab_set()
             dlg.update_idletasks()
-            x = (dlg.winfo_screenwidth() - 400) // 2
-            y = (dlg.winfo_screenheight() - 500) // 2
-            dlg.geometry(f"400x500+{x}+{y}")
+            x = (dlg.winfo_screenwidth() - 420) // 2
+            y = (dlg.winfo_screenheight() - 550) // 2
+            dlg.geometry(f"420x550+{x}+{y}")
 
-            ctk.CTkLabel(dlg, text=f"开始菜单共扫描到 {len(apps)} 个应用", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=10)
+            ctk.CTkLabel(dlg, text=f"开始菜单共扫描到 {len(apps)} 个应用（图标异步加载）", font=ctk.CTkFont(size=13, weight="bold")).pack(pady=10)
 
             scroll_frame = ctk.CTkScrollableFrame(dlg, fg_color="transparent")
-            scroll_frame.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+            scroll_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+            # 存储图标引用防止GC
+            icon_refs = []
+
+            def load_icon_async(app_name, icon_label):
+                """异步加载单个应用图标"""
+                try:
+                    lnk_path = self._find_lnk_by_name(app_name)
+                    if not lnk_path:
+                        return
+                    app_info = get_app_info(lnk_path)
+                    if not app_info or not app_info.get("path"):
+                        return
+                    icon_img = get_app_icon(app_info["path"], size=24)
+                    if icon_img:
+                        photo = ImageTk.PhotoImage(icon_img)
+                        icon_refs.append(photo)
+                        # 回到主线程更新UI
+                        self.after(0, lambda: icon_label.configure(image=photo, text=""))
+                except Exception as e:
+                    logger.debug(f"加载应用图标失败 {app_name}: {e}")
 
             for idx, app_name in enumerate(apps, 1):
-                item = ctk.CTkFrame(scroll_frame, fg_color="transparent", height=28)
+                item = ctk.CTkFrame(scroll_frame, fg_color="transparent", height=32)
                 item.pack(fill="x", pady=1)
-                ctk.CTkLabel(item, text=f"{idx:3d}.  {app_name}", font=ctk.CTkFont(size=12), anchor="w").pack(side="left", padx=5)
+
+                # 图标标签（初始为空）
+                icon_label = ctk.CTkLabel(item, text="", width=28, height=28)
+                icon_label.pack(side="left", padx=(5, 8))
+
+                # 编号和名称
+                ctk.CTkLabel(
+                    item,
+                    text=f"{idx:3d}.  {app_name}",
+                    font=ctk.CTkFont(size=12),
+                    anchor="w"
+                ).pack(side="left", padx=2)
+
+                # 提交到线程池异步加载图标
+                if hasattr(self, 'icon_executor'):
+                    self.icon_executor.submit(load_icon_async, app_name, icon_label)
 
             ctk.CTkButton(dlg, text="关闭", width=100, height=32, fg_color=("#0078D4", "#005A9E"), command=dlg.destroy).pack(pady=10)
 
-            # 同时保存到文件
+            # 保存到文件
             try:
                 list_file = os.path.join(os.environ.get('APPDATA', '.'), "Win11Launcher", "scanned_apps.txt")
                 with open(list_file, 'w', encoding='utf-8') as f:
