@@ -115,43 +115,49 @@ class FolderWindow(ctk.CTkToplevel):
         # 启动展开动画
         self.after(10, self._animate_open)
     def _animate_open(self):
-        """iOS风格展开动画：从图标位置放大到目标大小"""
+        """iOS风格展开动画：从图标位置放大到目标大小（丝滑版）"""
         try:
             if self._anchor_x is None:
                 self.focus_force()
                 self.after(100, self._ensure_on_top)
                 return
 
-            frames = 14
-            duration = 250
-            delay = duration // frames
+            # 预计算所有帧参数，避免每帧重复计算
+            frames = 22
+            delay = 12  # 每帧12ms，总时长约264ms
 
             start_w, start_h = 48, 48
             start_x = self._anchor_x - start_w // 2
             start_y = self._anchor_y - start_h // 2
 
-            def animate(frame):
-                if not self.winfo_exists() or self._is_closing:
-                    return
-                if frame >= frames:
-                    self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
-                    self.attributes('-alpha', self._target_alpha)
-                    self.focus_force()
-                    self.after(100, self._ensure_on_top)
-                    return
-
-                t = frame / frames
-                ease = 1 - (1 - t) ** 3  # ease-out
+            # 预计算每一帧的 geometry 和 alpha
+            frame_data = []
+            for i in range(frames):
+                t = (i + 1) / frames
+                # ease-out-quart：开始快，结尾平滑减速，比cubic更丝滑
+                ease = 1 - (1 - t) ** 4
 
                 w = int(start_w + (self._target_w - start_w) * ease)
                 h = int(start_h + (self._target_h - start_h) * ease)
                 x = int(start_x + (self._target_x - start_x) * ease)
                 y = int(start_y + (self._target_y - start_y) * ease)
                 alpha = 0.3 + (self._target_alpha - 0.3) * ease
+                frame_data.append((f"{w}x{h}+{x}+{y}", alpha))
 
-                self.geometry(f"{w}x{h}+{x}+{y}")
+            def animate(idx):
+                if not self.winfo_exists() or self._is_closing:
+                    return
+                if idx >= frames:
+                    self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
+                    self.attributes('-alpha', self._target_alpha)
+                    self.focus_force()
+                    self.after(100, self._ensure_on_top)
+                    return
+
+                geom, alpha = frame_data[idx]
+                self.geometry(geom)
                 self.attributes('-alpha', alpha)
-                self.after(delay, lambda: animate(frame + 1))
+                self.after(delay, lambda: animate(idx + 1))
 
             animate(0)
         except Exception as e:
@@ -159,7 +165,6 @@ class FolderWindow(ctk.CTkToplevel):
             try:
                 self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                 self.attributes('-alpha', self._target_alpha)
-                self._content_frame.pack(fill="both", expand=True)
             except Exception:
                 pass
 
@@ -173,7 +178,7 @@ class FolderWindow(ctk.CTkToplevel):
             pass
 
     def _animate_close(self, callback=None):
-        """iOS风格回收动画：缩小回图标位置"""
+        """iOS风格回收动画：缩小回图标位置（丝滑版）"""
         if self._is_closing:
             return
         self._is_closing = True
@@ -186,9 +191,9 @@ class FolderWindow(ctk.CTkToplevel):
                     self.destroy()
                 return
 
-            frames = 12
-            duration = 200
-            delay = duration // frames
+            # 预计算所有帧参数
+            frames = 18
+            delay = 11  # 每帧11ms，总时长约198ms
 
             start_w = self._target_w
             start_h = self._target_h
@@ -198,28 +203,34 @@ class FolderWindow(ctk.CTkToplevel):
             end_x = self._anchor_x - end_w // 2
             end_y = self._anchor_y - end_h // 2
 
-            def animate(frame):
-                if not self.winfo_exists():
-                    return
-                if frame >= frames:
-                    if callback:
-                        callback()
-                    else:
-                        self.destroy()
-                    return
-
-                t = frame / frames
-                ease = t * t  # ease-in
+            # 预计算每一帧
+            frame_data = []
+            for i in range(frames):
+                t = (i + 1) / frames
+                # ease-in-quad：开始慢，结尾快
+                ease = t * t
 
                 w = int(start_w + (end_w - start_w) * ease)
                 h = int(start_h + (end_h - start_h) * ease)
                 x = int(start_x + (end_x - start_x) * ease)
                 y = int(start_y + (end_y - start_y) * ease)
                 alpha = self._target_alpha * (1 - ease)
+                frame_data.append((f"{w}x{h}+{x}+{y}", max(0.1, alpha)))
 
-                self.geometry(f"{w}x{h}+{x}+{y}")
-                self.attributes('-alpha', max(0.1, alpha))
-                self.after(delay, lambda: animate(frame + 1))
+            def animate(idx):
+                if not self.winfo_exists():
+                    return
+                if idx >= frames:
+                    if callback:
+                        callback()
+                    else:
+                        self.destroy()
+                    return
+
+                geom, alpha = frame_data[idx]
+                self.geometry(geom)
+                self.attributes('-alpha', alpha)
+                self.after(delay, lambda: animate(idx + 1))
 
             animate(0)
         except Exception as e:
