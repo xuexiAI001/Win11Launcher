@@ -1371,6 +1371,33 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             command=self._show_category_manager
         ).pack()
 
+        # 配置导入导出
+        ie_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        ie_frame.pack(fill="x", padx=30, pady=(5, 5))
+
+        ctk.CTkButton(
+            ie_frame,
+            text="导出配置",
+            width=200,
+            height=32,
+            corner_radius=8,
+            fg_color=("#E8E8E8", "#2D2D2D"),
+            text_color=("#1A1A1A", "#E0E0E0"),
+            command=self._export_config
+        ).pack(side="left", padx=(0, 10))
+
+        ctk.CTkButton(
+            ie_frame,
+            text="导入配置",
+            width=200,
+            height=32,
+            corner_radius=8,
+            fg_color=("#E8E8E8", "#2D2D2D"),
+            text_color=("#1A1A1A", "#E0E0E0"),
+            command=self._import_config
+        ).pack(side="left")
+
+
         # 保存按钮
         save_btn = ctk.CTkButton(
             dialog,
@@ -1576,6 +1603,123 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         self._show_message("设置已保存")
         dialog.destroy()
+
+
+    def _export_config(self):
+        """导出配置到文件"""
+        try:
+            from tkinter import filedialog
+            file_path = filedialog.asksaveasfilename(
+                title="导出配置",
+                defaultextension=".json",
+                filetypes=[("配置文件", "*.json"), ("所有文件", "*.*")],
+                initialfile="win11launcher_config.json"
+            )
+            if not file_path:
+                return
+
+            data = {
+                "app_config": self.app_config,
+                "categories": self.categories,
+                "alpha": self.alpha_var.get() if hasattr(self, 'alpha_var') else 0.96,
+                "version": "1.0",
+                "export_time": __import__('datetime').datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                import json
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
+            logger.debug(f"配置已导出到: {file_path}")
+            self._show_message(f"配置已导出到:\n{file_path}")
+        except Exception as e:
+            logger.debug(f"导出配置失败: {e}")
+            self._show_message("导出配置失败")
+
+    def _import_config(self):
+        """从文件导入配置"""
+        try:
+            from tkinter import filedialog
+            file_path = filedialog.askopenfilename(
+                title="导入配置",
+                filetypes=[("配置文件", "*.json"), ("所有文件", "*.*")]
+            )
+            if not file_path:
+                return
+
+            import json
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # 确认对话框
+            confirm = ctk.CTkToplevel(self)
+            confirm.title("确认导入")
+            confirm.geometry("380x200")
+            confirm.resizable(False, False)
+            confirm.transient(self)
+            confirm.grab_set()
+            confirm.update_idletasks()
+            x = (confirm.winfo_screenwidth() - 380) // 2
+            y = (confirm.winfo_screenheight() - 200) // 2
+            confirm.geometry(f"+{x}+{y}")
+
+            ctk.CTkLabel(
+                confirm,
+                text="导入配置将覆盖当前所有应用和分类设置，\n确定要继续吗？",
+                font=ctk.CTkFont(size=13),
+                justify="center"
+            ).pack(pady=(30, 20))
+
+            btn_frame = ctk.CTkFrame(confirm, fg_color="transparent")
+            btn_frame.pack(pady=10)
+
+            def do_import():
+                try:
+                    # 加载分类
+                    if "categories" in data and isinstance(data["categories"], list):
+                        self.categories = data["categories"]
+                        self.current_category = self.categories[0]
+
+                    # 加载应用配置
+                    if "app_config" in data:
+                        self.app_config = data["app_config"]
+
+                    # 加载透明度
+                    if "alpha" in data and hasattr(self, 'alpha_var'):
+                        alpha_val = float(data["alpha"])
+                        self.alpha_var.set(alpha_val)
+                        self.attributes('-alpha', alpha_val)
+
+                    # 重建缓存
+                    self.category_items_cache = {cat: [] for cat in self.categories}
+
+                    # 保存并刷新
+                    self._save_config()
+                    self._refresh_grid(force=True)
+                    # 重建分类Tab
+                    self._setup_tabs()
+
+                    logger.debug(f"配置已从 {file_path} 导入")
+                    self._show_message("配置导入成功")
+                except Exception as e:
+                    logger.debug(f"导入配置失败: {e}")
+                    self._show_message("导入配置失败，文件格式可能不正确")
+                confirm.destroy()
+
+            ctk.CTkButton(
+                btn_frame, text="导入", width=100,
+                fg_color="#0078D4", command=do_import
+            ).pack(side="left", padx=10)
+            ctk.CTkButton(
+                btn_frame, text="取消", width=100,
+                fg_color=("#E8E8E8", "#2D2D2D"),
+                text_color=("#1A1A1A", "#E0E0E0"),
+                command=confirm.destroy
+            ).pack(side="left", padx=10)
+
+        except Exception as e:
+            logger.debug(f"导入配置失败: {e}")
+            self._show_message("导入配置失败")
 
     def _show_category_manager(self):
         """弹出独立的分类管理对话框"""
