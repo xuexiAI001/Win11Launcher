@@ -205,6 +205,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 初始化完成后设置标志
         self.after(500, self._mark_initialized)
 
+        # 延迟3秒启动新安装应用监控
+        self._install_monitor_running = False
+        self._known_installed_apps = set()
+        self._notified_installs = set()
+        self.after(3000, self._start_install_monitor)
+
         # 窗口关闭时清理线程池
         self._original_destroy = self.destroy
         self.destroy = self._on_destroy
@@ -224,6 +230,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
     def _force_quit(self):
         """真正退出程序"""
         try:
+            self._install_monitor_running = False
             if hasattr(self, '_tray_manager'):
                 self._tray_manager.stop()
             if hasattr(self, 'icon_executor'):
@@ -2356,6 +2363,139 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 logger.info(f"已删除桌面原文件: {file_path_abs}")
         except Exception as e:
             logger.debug(f"删除桌面原文件失败: {e}")
+
+    def _start_install_monitor(self):
+        """启动新安装应用监控（后台线程）"""
+        try:
+            self._known_installed_apps = self._scan_start_menu_apps()
+            self._install_monitor_running = True
+            logger.debug(f"安装监控已启动，已知应用数: {len(self._known_installed_apps)}")
+
+            import threading
+            def monitor_loop():
+                import time
+                while self._install_monitor_running:
+                    time.sleep(60)
+                    if not self._install_monitor_running:
+                        break
+                    try:
+                        self._check_new_installs()
+                    except Exception as e:
+                        logger.debug(f"安装监控检查失败: {e}")
+
+            t = threading.Thread(target=monitor_loop, daemon=True)
+            t.start()
+        except Exception as e:
+            logger.debug(f"启动安装监控失败: {e}")
+
+    def _scan_start_menu_apps(self):
+        """扫描开始菜单中的所有快捷方式，返回应用名称集合"""
+        apps = set()
+        try:
+            start_menu_paths = [
+                os.path.join(os.environ.get('PROGRAMDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+                os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+            ]
+            for sm_path in start_menu_paths:
+                if not os.path.exists(sm_path):
+                    continue
+                for root, dirs, files in os.walk(sm_path):
+                    for f in files:
+                        if f.lower().endswith('.lnk'):
+                            apps.add(os.path.splitext(f)[0])
+        except Exception as e:
+            logger.debug(f"扫描开始菜单失败: {e}")
+        return apps
+
+    def _check_new_installs(self):
+        """检查是否有新安装的应用"""
+        try:
+            current_apps = self._scan_start_menu_apps()
+            if not self._known_installed_apps:
+                self._known_installed_apps = current_apps
+                return
+            new_apps = current_apps - self._known_installed_apps
+            self._known_installed_apps = current_apps
+            for app_name in new_apps:
+                if app_name in self._notified_installs:
+                    continue
+                skip_keywords = ['uninstall', 'help', 'readme', 'url', '卸载', '帮助', '文档', '网址', '说明']
+                if any(kw in app_name.lower() for kw in skip_keywords):
+                    continue
+                self.after(0, lambda name=app_name: self._show_new_app_dialog(name))
+                self._notified_installs.add(app_name)
+                logger.debug(f"检测到新安装应用: {app_name}")
+        except Exception as e:
+            logger.debug(f"检查新安装失败: {e}")
+
+    def _show_new_app_dialog(self, app_name):
+        """显示新安装应用提示对话框"""
+        try:
+            dialog = ctk.CTkToplevel(self)
+            dialog.title("发现新应用")
+            dialog.geometry("380x280")
+            dialog.resizable(False, False)
+            dialog.transient(self)
+            dialog.grab_set()
+            dialog.update_idletasks()
+            x = (dialog.winfo_screenwidth() - 380) // 2
+            y = (dialog.winfo_screenheight() - 280) // 2
+            dialog.geometry(f"380x280+{x}+{y}")
+
+            ctk.CTkLabel(dialog, text="发现新安装的应用", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(20, 5))
+            ctk.CTkLabel(dialog, text=app_name, font=ctk.CTkFont(size=14)).pack(pady=(0, 15))
+            ctk.CTkLabel(dialog, text="选择要添加到的分类：", font=ctk.CTkFont(size=13)).pack(pady=(0, 10))
+
+            selected_cat = ctk.StringVar(value=self.categories[0])
+            ctk.CTkOptionMenu(dialog, values=self.categories, variable=selected_cat, width=200, height=32).pack(pady=(0, 20))
+
+            def on_add():
+                cat = selected_cat.get()
+                lnk_path = self._find_lnk_by_name(app_name)
+                if lnk_path:
+                    from app_info import get_app_info
+                    app_info = get_app_info(lnk_path)
+                    if app_info and app_info.get("path"):
+                        exists = any(a.get("path") == app_info["path"] for a in self.app_config.get(cat, []))
+                        if not exists:
+                            self.app_config[cat].append(app_info)
+                            self.category_items_cache[cat].clear()
+                            self._save_config()
+                            if cat == self.current_category:
+                                self._refresh_grid(force=True)
+                            self._show_message(f"已添加「{app_name}」到「{cat}」")
+                        else:
+                            self._show_message(f"「{app_name}」已在「{cat}」中")
+                    else:
+                        self._show_message("无法解析应用信息")
+                else:
+                    self._show_message("未找到应用快捷方式")
+                dialog.destroy()
+
+            btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+            btn_frame.pack(pady=10)
+            ctk.CTkButton(btn_frame, text="添加", width=100, height=32, fg_color=("#0078D4", "#005A9E"), command=on_add).pack(side="left", padx=10)
+            ctk.CTkButton(btn_frame, text="忽略", width=100, height=32, fg_color=("#E8E8E8", "#2D2D2D"), text_color=("#1A1A1A", "#E0E0E0"), command=dialog.destroy).pack(side="left", padx=10)
+        except Exception as e:
+            logger.debug(f"显示新应用对话框失败: {e}")
+
+    def _find_lnk_by_name(self, app_name):
+        """根据应用名称查找开始菜单中的.lnk文件路径"""
+        try:
+            start_menu_paths = [
+                os.path.join(os.environ.get('PROGRAMDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+                os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+            ]
+            for sm_path in start_menu_paths:
+                if not os.path.exists(sm_path):
+                    continue
+                for root, dirs, files in os.walk(sm_path):
+                    for f in files:
+                        if f.lower().endswith('.lnk') and os.path.splitext(f)[0] == app_name:
+                            return os.path.join(root, f)
+        except Exception as e:
+            logger.debug(f"查找快捷方式失败: {e}")
+        return None
 
     def _get_folders(self, category=None):
         """获取指定分类的文件夹列表"""
