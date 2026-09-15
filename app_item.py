@@ -128,15 +128,35 @@ class AppGridItem(ctk.CTkFrame):
             logger.debug(f"拖拽释放检测失败: {e}")
 
     def _open_folder(self):
-        """打开文件夹窗口"""
+        """打开文件夹窗口 - 单例模式，同一文件夹只打开一个"""
         try:
             folder_key = f"{self.parent_window.current_category}_{self.app_data.get('name')}"
-            FolderWindow(
+            open_windows = getattr(self.parent_window, '_open_folder_windows', {})
+
+            # 检查是否已打开
+            if folder_key in open_windows:
+                win = open_windows[folder_key]
+                try:
+                    if win.winfo_exists():
+                        win.deiconify()
+                        win.lift()
+                        win.focus_force()
+                        logger.debug(f"文件夹已打开，聚焦: {folder_key}")
+                        return
+                except Exception:
+                    pass
+                # 窗口已销毁，移除旧引用
+                del open_windows[folder_key]
+
+            # 创建新窗口
+            win = FolderWindow(
                 self.parent_window,
                 self.app_data,
                 folder_key,
                 on_changed=lambda: self.parent_window._refresh_grid(force=True)
             )
+            open_windows[folder_key] = win
+            logger.debug(f"打开文件夹窗口: {folder_key}")
         except Exception as e:
             logger.debug(f"打开文件夹失败: {e}")
 

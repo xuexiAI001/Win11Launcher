@@ -161,6 +161,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         # 缓存：按分类保存AppGridItem列表
         self.category_items_cache = {cat: [] for cat in self.categories}
+        self._open_folder_windows = {}  # 已打开的文件夹窗口 {folder_key: window}
 
         # 图标提取线程池（限制并发数，避免大量线程抢CPU）
         self.icon_executor = concurrent.futures.ThreadPoolExecutor(

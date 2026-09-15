@@ -68,6 +68,20 @@ class FolderWindow(ctk.CTkToplevel):
 
         self._render_apps()
 
+        # 关闭时从主窗口字典中移除
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _on_close(self):
+        """窗口关闭时清理引用"""
+        try:
+            open_windows = getattr(self.parent_window, '_open_folder_windows', {})
+            if self.folder_key in open_windows:
+                del open_windows[self.folder_key]
+                logger.debug(f"关闭文件夹窗口，移除引用: {self.folder_key}")
+        except Exception:
+            pass
+        self.destroy()
+
     def _ensure_on_top(self):
         """确保窗口在最顶层"""
         try:
