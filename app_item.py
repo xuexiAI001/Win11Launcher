@@ -288,7 +288,7 @@ class AppGridItem(ctk.CTkFrame):
 
         # 先更新布局，获取实际渲染高度
         menu_window.update_idletasks()
-        actual_height = menu_frame.winfo_reqheight() + 8
+        actual_height = menu_frame.winfo_reqheight() + 4  # 上下各2px边距
 
         # 屏幕边界检测
         screen_w = menu_window.winfo_screenwidth()
@@ -496,7 +496,7 @@ class AppGridItem(ctk.CTkFrame):
         root._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
-        menu_frame.pack(fill="both", expand=True, padx=0, pady=4)
+        menu_frame.pack(fill="both", expand=True, padx=0, pady=2)
 
         submenu = None
 
@@ -528,19 +528,8 @@ class AppGridItem(ctk.CTkFrame):
             submenu_x = x + 155
             submenu_y = y + 40
 
-            # 先更新布局，获取实际渲染高度
-            submenu.update_idletasks()
-            submenu_height = submenu_frame.winfo_reqheight() + 8
-
-            screen_height = submenu.winfo_screenheight()
-            if submenu_y + submenu_height > screen_height:
-                submenu_y = submenu_y - submenu_height - 50
-            submenu.geometry(f"120x{submenu_height}+{submenu_x}+{submenu_y}")
-            submenu.update_idletasks()
-            _enable_menu_shadow(submenu)
-
             submenu_frame = ctk.CTkFrame(submenu, fg_color=bg_color, corner_radius=8)
-            submenu_frame.pack(fill="both", expand=True, padx=0, pady=4)
+            submenu_frame.pack(fill="both", expand=True, padx=0, pady=2)
 
             for cat in self.parent_window.categories:
                 btn = ctk.CTkButton(
@@ -551,11 +540,22 @@ class AppGridItem(ctk.CTkFrame):
                     text_color=fg_color,
                     command=lambda c=cat: (self._do_move_category(c), menu_window.destroy()),
                     anchor="w",
-                    height=32,
+                    height=30,
                     corner_radius=4,
                     font=ctk.CTkFont(size=13)
                 )
-                btn.pack(fill="x", padx=4, pady=1)
+                btn.pack(fill="x", padx=4, pady=0)
+
+            # 先更新布局，获取实际渲染高度
+            submenu.update_idletasks()
+            submenu_height = submenu_frame.winfo_reqheight() + 4
+
+            screen_height = submenu.winfo_screenheight()
+            if submenu_y + submenu_height > screen_height:
+                submenu_y = submenu_y - submenu_height - 50
+            submenu.geometry(f"120x{submenu_height}+{submenu_x}+{submenu_y}")
+            submenu.update_idletasks()
+            _enable_menu_shadow(submenu)
 
             root._current_submenu = submenu
             set_move_arrow("⌄")
@@ -595,7 +595,7 @@ class AppGridItem(ctk.CTkFrame):
         def add_menu_item(label, command, icon="", is_separator=False):
             if is_separator:
                 sep = ctk.CTkFrame(menu_frame, height=1, fg_color=separator_color)
-                sep.pack(fill="x", padx=12, pady=5)
+                sep.pack(fill="x", padx=12, pady=3)
             else:
                 display_text = f"  {icon}  {label}" if icon else f"    {label}"
                 btn = ctk.CTkButton(
@@ -606,11 +606,11 @@ class AppGridItem(ctk.CTkFrame):
                     text_color=fg_color,
                     command=lambda: (command(), menu_window.destroy()),
                     anchor="w",
-                    height=32,
+                    height=30,
                     corner_radius=4,
                     font=ctk.CTkFont(size=13)
                 )
-                btn.pack(fill="x", padx=4, pady=1)
+                btn.pack(fill="x", padx=4, pady=0)
 
         add_menu_item("启动", self._launch_app, icon="▶")
         add_menu_item("管理员身份启动", self._launch_as_admin, icon="⬆")
@@ -623,11 +623,11 @@ class AppGridItem(ctk.CTkFrame):
             hover_color=hover_color,
             text_color=fg_color,
             anchor="w",
-            height=32,
+            height=30,
             corner_radius=4,
             font=ctk.CTkFont(size=13)
         )
-        move_btn.pack(fill="x", padx=4, pady=1)
+        move_btn.pack(fill="x", padx=4, pady=0)
         move_btn.bind("<Enter>", on_move_btn_enter)
         move_btn.bind("<Leave>", on_move_btn_leave)
 
@@ -665,19 +665,8 @@ class AppGridItem(ctk.CTkFrame):
             submenu_x = x + 155
             submenu_y = y + 75
 
-            # 先更新布局，获取实际渲染高度
-            folder_submenu.update_idletasks()
-            submenu_height = sf_frame.winfo_reqheight() + 8
-
-            screen_h = folder_submenu.winfo_screenheight()
-            if submenu_y + submenu_height > screen_h:
-                submenu_y = submenu_y - submenu_height - 80
-            folder_submenu.geometry(f"140x{submenu_height}+{submenu_x}+{submenu_y}")
-            folder_submenu.update_idletasks()
-            _enable_menu_shadow(folder_submenu)
-
             sf_frame = ctk.CTkFrame(folder_submenu, fg_color=bg_color, corner_radius=8)
-            sf_frame.pack(fill="both", expand=True, padx=0, pady=4)
+            sf_frame.pack(fill="both", expand=True, padx=0, pady=2)
 
             for folder in folders:
                 fname = folder.get("name", "")
@@ -687,18 +676,29 @@ class AppGridItem(ctk.CTkFrame):
                     command=lambda f=fname: (self.parent_window._move_app_to_folder(self.app_data, f), menu_window.destroy()),
                     anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13)
                 )
-                btn.pack(fill="x", padx=4, pady=1)
+                btn.pack(fill="x", padx=4, pady=0)
 
             # 分隔线
-            ctk.CTkFrame(sf_frame, height=1, fg_color=separator_color).pack(fill="x", padx=12, pady=5)
+            ctk.CTkFrame(sf_frame, height=1, fg_color=separator_color).pack(fill="x", padx=12, pady=3)
 
             # 新建文件夹
             ctk.CTkButton(
                 sf_frame, text="    新建文件夹...", fg_color="transparent",
                 hover_color=hover_color, text_color=fg_color,
                 command=lambda: (self._create_and_move_to_folder(), menu_window.destroy()),
-                anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13)
-            ).pack(fill="x", padx=4, pady=1)
+                anchor="w", height=30, corner_radius=4, font=ctk.CTkFont(size=13)
+            ).pack(fill="x", padx=4, pady=0)
+
+            # 先更新布局，获取实际渲染高度
+            folder_submenu.update_idletasks()
+            submenu_height = sf_frame.winfo_reqheight() + 4
+
+            screen_h = folder_submenu.winfo_screenheight()
+            if submenu_y + submenu_height > screen_h:
+                submenu_y = submenu_y - submenu_height - 80
+            folder_submenu.geometry(f"140x{submenu_height}+{submenu_x}+{submenu_y}")
+            folder_submenu.update_idletasks()
+            _enable_menu_shadow(folder_submenu)
 
             root._current_folder_submenu = folder_submenu
             set_folder_arrow("⌄")
@@ -748,7 +748,7 @@ class AppGridItem(ctk.CTkFrame):
             corner_radius=4,
             font=ctk.CTkFont(size=13)
         )
-        folder_btn.pack(fill="x", padx=4, pady=1)
+        folder_btn.pack(fill="x", padx=4, pady=0)
         folder_btn.bind("<Enter>", on_folder_btn_enter)
         folder_btn.bind("<Leave>", on_folder_btn_leave)
 
