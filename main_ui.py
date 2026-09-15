@@ -2350,25 +2350,109 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
 
     def _show_grid_context_menu(self, event):
-        """空白处右键菜单：新建文件夹"""
+        """空白处右键菜单：新建文件夹 - Win11风格自定义菜单"""
         # 只在点击空白区域时触发（不是点击应用卡片）
         widget = event.widget
-        if widget != self.grid_frame and not str(widget).startswith(str(self.grid_frame) + '.!ctkscrollableframe'):
-            # 检查是否是应用卡片
-            parent = widget
-            while parent:
-                if hasattr(parent, 'app_data'):
-                    return  # 点击的是应用卡片，不显示此菜单
-                parent = getattr(parent, '_parent', None) or getattr(parent, 'master', None)
-                if parent is None or parent == self.grid_frame:
-                    break
+        parent = widget
+        while parent:
+            if hasattr(parent, 'app_data'):
+                return  # 点击的是应用卡片，不显示此菜单
+            parent = getattr(parent, '_parent', None) or getattr(parent, 'master', None)
+            if parent is None or parent == self.grid_frame:
+                break
 
-        menu = tk.Menu(self, tearoff=0)
-        menu.add_command(label="新建文件夹", command=self._create_folder_with_dialog)
-        try:
-            menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu.grab_release()
+        x, y = event.x_root, event.y_root
+
+        # 关闭其他已打开的菜单
+        if hasattr(self, '_global_context_menus'):
+            for menu_win in self._global_context_menus[:]:
+                try:
+                    if menu_win.winfo_exists():
+                        menu_win.destroy()
+                except Exception:
+                    pass
+            self._global_context_menus.clear()
+
+        appearance_mode = ctk.get_appearance_mode()
+        if appearance_mode == "Dark":
+            bg_color = "#2B2B2B"
+            fg_color = "#FFFFFF"
+            hover_color = "#404040"
+        else:
+            bg_color = "#F3F3F3"
+            fg_color = "#000000"
+            hover_color = "#E5E5E5"
+
+        menu_window = ctk.CTkToplevel(self)
+        menu_window.overrideredirect(True)
+        menu_window.attributes("-topmost", True)
+        menu_window.attributes("-alpha", 0.95)
+
+        if not hasattr(self, '_global_context_menus'):
+            self._global_context_menus = []
+        self._global_context_menus.append(menu_window)
+
+        menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
+        menu_frame.pack(fill="both", expand=True, padx=3, pady=3)
+
+        def do_create():
+            menu_window.destroy()
+            self._create_folder_with_dialog()
+
+        btn = ctk.CTkButton(
+            menu_frame,
+            text="新建文件夹",
+            fg_color="transparent",
+            hover_color=hover_color,
+            text_color=fg_color,
+            command=do_create,
+            anchor="w",
+            height=28,
+            font=ctk.CTkFont(size=13)
+        )
+        btn.pack(fill="x", padx=3)
+
+        width = 120
+        height = 40
+
+        # 屏幕边界检测
+        screen_w = menu_window.winfo_screenwidth()
+        screen_h = menu_window.winfo_screenheight()
+        if x + width > screen_w:
+            x = screen_w - width - 5
+        if y + height > screen_h:
+            y = y - height - 10
+
+        menu_window.geometry(f"{width}x{height}+{x}+{y}")
+
+        def on_esc(event):
+            if menu_window.winfo_exists():
+                menu_window.destroy()
+
+        def on_click_outside(event):
+            if menu_window.winfo_exists():
+                mx, my = event.x_root, event.y_root
+                wx, wy = menu_window.winfo_rootx(), menu_window.winfo_rooty()
+                ww, wh = menu_window.winfo_width(), menu_window.winfo_height()
+                if not (wx <= mx < wx + ww and wy <= my < wy + wh):
+                    menu_window.destroy()
+
+        def on_destroy():
+            try:
+                self.unbind("<Escape>", on_esc)
+            except Exception:
+                pass
+            try:
+                self.unbind("<Button-1>", on_click_outside)
+            except Exception:
+                pass
+            if hasattr(self, '_global_context_menus') and menu_window in self._global_context_menus:
+                self._global_context_menus.remove(menu_window)
+
+        self.bind("<Escape>", on_esc, add=True)
+        self.bind("<Button-1>", on_click_outside, add=True)
+        menu_window.protocol("WM_DELETE_WINDOW", on_destroy)
+        menu_window.bind("<Destroy>", lambda e: on_destroy())
 
     def _create_folder_with_dialog(self):
         """对话框创建文件夹"""
