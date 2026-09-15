@@ -2394,7 +2394,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
-        menu_frame.pack(fill="both", expand=True, padx=0, pady=0)
+        menu_frame.pack(fill="both", expand=True, padx=0, pady=4)
 
         def do_create():
             menu_window.destroy()
@@ -2415,17 +2415,20 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         btn.pack(fill="x", padx=4, pady=1)
 
         width = 130
-        height = 40
+
+        # 先更新布局，获取实际渲染高度
+        menu_window.update_idletasks()
+        actual_height = menu_frame.winfo_reqheight() + 8
 
         # 屏幕边界检测
         screen_w = menu_window.winfo_screenwidth()
         screen_h = menu_window.winfo_screenheight()
         if x + width > screen_w:
             x = screen_w - width - 5
-        if y + height > screen_h:
-            y = y - height - 10
+        if y + actual_height > screen_h:
+            y = y - actual_height - 10
 
-        menu_window.geometry(f"{width}x{height}+{x}+{y}")
+        menu_window.geometry(f"{width}x{actual_height}+{x}+{y}")
         menu_window.update_idletasks()
         _enable_menu_shadow(menu_window)
 

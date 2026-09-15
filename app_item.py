@@ -257,7 +257,7 @@ class AppGridItem(ctk.CTkFrame):
         root._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
-        menu_frame.pack(fill="both", expand=True, padx=0, pady=0)
+        menu_frame.pack(fill="both", expand=True, padx=0, pady=4)
 
         def add_item(label, command, icon=""):
             display_text = f"  {icon}  {label}" if icon else f"    {label}"
@@ -285,17 +285,20 @@ class AppGridItem(ctk.CTkFrame):
         add_item("删除文件夹", self._delete_folder, icon="✕")
 
         width = 130
-        height = 3 * 34 + 11 + 16
+
+        # 先更新布局，获取实际渲染高度
+        menu_window.update_idletasks()
+        actual_height = menu_frame.winfo_reqheight() + 8
 
         # 屏幕边界检测
         screen_w = menu_window.winfo_screenwidth()
         screen_h = menu_window.winfo_screenheight()
         if x + width > screen_w:
             x = screen_w - width - 5
-        if y + height > screen_h:
-            y = y - height - 10
+        if y + actual_height > screen_h:
+            y = y - actual_height - 10
 
-        menu_window.geometry(f"{width}x{height}+{x}+{y}")
+        menu_window.geometry(f"{width}x{actual_height}+{x}+{y}")
         menu_window.update_idletasks()
         _enable_menu_shadow(menu_window)
 
@@ -493,7 +496,7 @@ class AppGridItem(ctk.CTkFrame):
         root._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
-        menu_frame.pack(fill="both", expand=True, padx=0, pady=0)
+        menu_frame.pack(fill="both", expand=True, padx=0, pady=4)
 
         submenu = None
 
@@ -522,20 +525,22 @@ class AppGridItem(ctk.CTkFrame):
             submenu.config(bg="#000001")
             submenu.attributes("-transparentcolor", "#000001")
 
-            submenu_height = len(self.parent_window.categories) * 34 + 8
             submenu_x = x + 155
             submenu_y = y + 40
+
+            # 先更新布局，获取实际渲染高度
+            submenu.update_idletasks()
+            submenu_height = submenu_frame.winfo_reqheight() + 8
 
             screen_height = submenu.winfo_screenheight()
             if submenu_y + submenu_height > screen_height:
                 submenu_y = submenu_y - submenu_height - 50
-
             submenu.geometry(f"120x{submenu_height}+{submenu_x}+{submenu_y}")
             submenu.update_idletasks()
             _enable_menu_shadow(submenu)
 
             submenu_frame = ctk.CTkFrame(submenu, fg_color=bg_color, corner_radius=8)
-            submenu_frame.pack(fill="both", expand=True, padx=0, pady=0)
+            submenu_frame.pack(fill="both", expand=True, padx=0, pady=4)
 
             for cat in self.parent_window.categories:
                 btn = ctk.CTkButton(
@@ -657,9 +662,13 @@ class AppGridItem(ctk.CTkFrame):
             folder_submenu.attributes("-transparentcolor", "#000001")
 
             folders = self.parent_window._get_folders() if self.parent_window else []
-            submenu_height = (len(folders) + 2) * 34 + 11
             submenu_x = x + 155
             submenu_y = y + 75
+
+            # 先更新布局，获取实际渲染高度
+            folder_submenu.update_idletasks()
+            submenu_height = sf_frame.winfo_reqheight() + 8
+
             screen_h = folder_submenu.winfo_screenheight()
             if submenu_y + submenu_height > screen_h:
                 submenu_y = submenu_y - submenu_height - 80
@@ -668,7 +677,7 @@ class AppGridItem(ctk.CTkFrame):
             _enable_menu_shadow(folder_submenu)
 
             sf_frame = ctk.CTkFrame(folder_submenu, fg_color=bg_color, corner_radius=8)
-            sf_frame.pack(fill="both", expand=True, padx=0, pady=0)
+            sf_frame.pack(fill="both", expand=True, padx=0, pady=4)
 
             for folder in folders:
                 fname = folder.get("name", "")
@@ -757,15 +766,17 @@ class AppGridItem(ctk.CTkFrame):
         add_menu_item("属性", self._show_properties, icon="ⓘ")
 
         width = 170
-        # 动态计算高度：11个菜单项(32px+2px pady) + 3个分隔线(1px+10px pady) + 上下边距(留足余量)
-        height = 11 * 34 + 3 * 11 + 24
 
+        # 先更新布局，获取实际渲染高度
+        menu_window.update_idletasks()
+        actual_height = menu_frame.winfo_reqheight() + 8
+
+        # 屏幕边界检测
         screen_height = menu_window.winfo_screenheight()
-        # 如果菜单底部超出屏幕，往上翻
-        if y + height > screen_height - 10:
-            y = max(10, y - height - 20)
+        if y + actual_height > screen_height - 10:
+            y = max(10, y - actual_height - 20)
 
-        menu_window.geometry(f"{width}x{height}+{x}+{y}")
+        menu_window.geometry(f"{width}x{actual_height}+{x}+{y}")
         menu_window.update_idletasks()
         _enable_menu_shadow(menu_window)
 
