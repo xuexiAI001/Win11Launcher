@@ -496,7 +496,7 @@ class AppGridItem(ctk.CTkFrame):
         root._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8,
-                                  border_width=1, border_color=("#D5D5D5", "#404040"))
+                                  border_width=1, border_color=("#B8B8B8", "#505050"))
         menu_frame.pack(fill="both", expand=True, padx=0, pady=2)
 
         submenu = None
@@ -530,7 +530,7 @@ class AppGridItem(ctk.CTkFrame):
             submenu_y = y + 40
 
             submenu_frame = ctk.CTkFrame(submenu, fg_color=bg_color, corner_radius=8,
-                                        border_width=1, border_color=("#D5D5D5", "#404040"))
+                                        border_width=1, border_color=("#B8B8B8", "#505050"))
             submenu_frame.pack(fill="both", expand=True, padx=0, pady=2)
 
             for cat in self.parent_window.categories:
@@ -668,7 +668,7 @@ class AppGridItem(ctk.CTkFrame):
             submenu_y = y + 75
 
             sf_frame = ctk.CTkFrame(folder_submenu, fg_color=bg_color, corner_radius=8,
-                                    border_width=1, border_color=("#D5D5D5", "#404040"))
+                                    border_width=1, border_color=("#B8B8B8", "#505050"))
             sf_frame.pack(fill="both", expand=True, padx=0, pady=2)
 
             for folder in folders:
