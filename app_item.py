@@ -16,29 +16,29 @@ logger = logging.getLogger("Win11Launcher")
 
 
 def _enable_menu_shadow(menu_win):
-    """给无边框菜单窗口添加 Windows DWM 阴影并移除边框"""
+    """给无边框菜单窗口添加 Windows DWM 阴影
+    注意：DWM阴影必须保留WS_THICKFRAME样式才能生效，只移除WS_BORDER"""
     try:
         import ctypes
         from ctypes import wintypes
 
         hwnd = ctypes.windll.user32.GetParent(menu_win.winfo_id())
 
-        # 移除窗口边框样式
+        # 只移除WS_BORDER，保留WS_THICKFRAME（DWM阴影依赖此样式）
         GWL_STYLE = -16
         WS_BORDER = 0x00800000
-        WS_THICKFRAME = 0x00040000
         style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
         style &= ~WS_BORDER
-        style &= ~WS_THICKFRAME
         ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style)
 
         # 启用 DWM 阴影
         DWMWA_DROPSHADOW = 2
         val = ctypes.c_int(1)
-        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+        result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
             hwnd, DWMWA_DROPSHADOW,
             ctypes.byref(val), ctypes.sizeof(val)
         )
+        logger.debug(f"菜单阴影设置 result={result}, hwnd={hwnd}")
     except Exception as e:
         logger.debug(f"设置菜单阴影失败: {e}")
 
