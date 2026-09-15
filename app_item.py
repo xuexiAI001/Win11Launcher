@@ -480,6 +480,7 @@ class AppGridItem(ctk.CTkFrame):
                 submenu.destroy()
             submenu = None
             root._current_submenu = None
+            set_move_arrow("›")
 
         def create_submenu():
             nonlocal submenu
@@ -522,6 +523,7 @@ class AppGridItem(ctk.CTkFrame):
                 btn.pack(fill="x", padx=4, pady=1)
 
             root._current_submenu = submenu
+            set_move_arrow("⌄")
 
             def on_submenu_enter(event):
                 if hasattr(root, '_close_submenu_timer') and root._close_submenu_timer:
@@ -580,7 +582,7 @@ class AppGridItem(ctk.CTkFrame):
 
         move_btn = ctk.CTkButton(
             menu_frame,
-            text="    移动分类              ›",
+            text="    移动分类                ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -592,6 +594,9 @@ class AppGridItem(ctk.CTkFrame):
         move_btn.pack(fill="x", padx=4, pady=1)
         move_btn.bind("<Enter>", on_move_btn_enter)
         move_btn.bind("<Leave>", on_move_btn_leave)
+
+        def set_move_arrow(arrow):
+            move_btn.configure(text=f"    移动分类                {arrow}")
 
         # 移动到文件夹 - 二级菜单
         folder_submenu = None
@@ -608,6 +613,7 @@ class AppGridItem(ctk.CTkFrame):
                 folder_submenu.destroy()
             folder_submenu = None
             root._current_folder_submenu = None
+            set_folder_arrow("›")
 
         def create_folder_submenu():
             nonlocal folder_submenu
@@ -654,6 +660,7 @@ class AppGridItem(ctk.CTkFrame):
             ).pack(fill="x", padx=4, pady=1)
 
             root._current_folder_submenu = folder_submenu
+            set_folder_arrow("⌄")
 
             # 文件夹子菜单鼠标事件
             def on_fsub_enter(event):
@@ -691,7 +698,7 @@ class AppGridItem(ctk.CTkFrame):
 
         folder_btn = ctk.CTkButton(
             menu_frame,
-            text="    移动到文件夹          ›",
+            text="    移动到文件夹            ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -704,6 +711,9 @@ class AppGridItem(ctk.CTkFrame):
         folder_btn.bind("<Enter>", on_folder_btn_enter)
         folder_btn.bind("<Leave>", on_folder_btn_leave)
 
+        def set_folder_arrow(arrow):
+            folder_btn.configure(text=f"    移动到文件夹            {arrow}")
+
         add_menu_item("", None, is_separator=True)
         add_menu_item("更换图标", self._change_icon)
         add_menu_item("重命名", self._rename_app)
@@ -714,7 +724,7 @@ class AppGridItem(ctk.CTkFrame):
         add_menu_item("打开文件位置", self._open_file_location)
         add_menu_item("属性", self._show_properties)
 
-        width = 150
+        width = 165
         # 动态计算高度：11个菜单项(32px) + 3个分隔线(1px+10px margin) + 上下边距
         height = 11 * 34 + 3 * 11 + 8
 
