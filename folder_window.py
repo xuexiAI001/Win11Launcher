@@ -130,6 +130,13 @@ class FolderWindow(ctk.CTkToplevel):
             start_x = self._anchor_x - start_w // 2
             start_y = self._anchor_y - start_h // 2
 
+            # 动画前冻结内容布局，避免窗口缩放时内容重新计算导致卡帧
+            try:
+                self._content_frame.configure(width=self._target_w - 20, height=self._target_h - 70)
+                self._content_frame.pack_propagate(False)
+            except Exception:
+                pass
+
             # 预计算每一帧的 geometry 和 alpha
             frame_data = []
             for i in range(frames):
@@ -150,6 +157,12 @@ class FolderWindow(ctk.CTkToplevel):
                 if idx >= frames:
                     self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                     self.attributes('-alpha', self._target_alpha)
+                    # 恢复内容布局
+                    try:
+                        self._content_frame.pack_propagate(True)
+                        self._content_frame.configure(width=0, height=0)
+                    except Exception:
+                        pass
                     self.focus_force()
                     self.after(100, self._ensure_on_top)
                     return
@@ -162,6 +175,11 @@ class FolderWindow(ctk.CTkToplevel):
             animate(0)
         except Exception as e:
             logger.debug(f"展开动画失败: {e}")
+            try:
+                self._content_frame.pack_propagate(True)
+                self._content_frame.configure(width=0, height=0)
+            except Exception:
+                pass
             try:
                 self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                 self.attributes('-alpha', self._target_alpha)
