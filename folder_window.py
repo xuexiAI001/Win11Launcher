@@ -30,6 +30,14 @@ class FolderWindow(ctk.CTkToplevel):
         self.geometry("500x400")
         self.configure(fg_color=("#F3F3F3", "#202020"))
 
+        # 设置透明度（与主窗口保持一致）
+        alpha = getattr(parent, 'alpha_var', None)
+        alpha_val = alpha.get() if alpha and alpha.get() > 0 else 0.96
+        self.attributes('-alpha', alpha_val)
+
+        # 设置亚克力透明效果（与主窗口保持一致）
+        self._setup_acrylic_effect()
+
         # 关键：设置为父窗口的临时窗口，确保始终在主窗口之上
         self.transient(parent)
         self.attributes("-topmost", True)
@@ -70,6 +78,39 @@ class FolderWindow(ctk.CTkToplevel):
 
         # 关闭时从主窗口字典中移除
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _setup_acrylic_effect(self):
+        """使用Windows DWM API设置亚克力效果（与主窗口保持一致）"""
+        try:
+            if sys.platform != "win32":
+                return
+            import ctypes
+            from ctypes import wintypes
+
+            hwnd = self.winfo_id()
+            user32 = ctypes.windll.user32
+
+            GetAncestor = user32.GetAncestor
+            GetAncestor.argtypes = [wintypes.HWND, ctypes.c_uint]
+            GetAncestor.restype = wintypes.HWND
+            root_hwnd = GetAncestor(hwnd, 2)
+            if root_hwnd:
+                hwnd = root_hwnd
+
+            DwmSetWindowAttribute = ctypes.windll.dwmapi.DwmSetWindowAttribute
+            DwmSetWindowAttribute.argtypes = [wintypes.HWND, ctypes.c_uint, ctypes.POINTER(ctypes.c_int), ctypes.c_uint]
+            DwmSetWindowAttribute.restype = wintypes.HRESULT
+
+            # DWMWA_SYSTEMBACKDROP_TYPE = 38, 2 = DWMSBT_ACRYLIC (亚克力效果)
+            backdrop_type = ctypes.c_int(2)
+            result = DwmSetWindowAttribute(hwnd, 38, ctypes.byref(backdrop_type), ctypes.sizeof(backdrop_type))
+
+            if result == 0:
+                logger.debug("文件夹窗口亚克力效果设置成功")
+            else:
+                logger.debug(f"文件夹窗口亚克力效果失败 result={result}")
+        except Exception as e:
+            logger.debug(f"文件夹窗口亚克力效果异常: {e}")
 
     def _on_close(self):
         """窗口关闭时清理引用"""
