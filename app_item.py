@@ -1307,7 +1307,7 @@ class AppGridItem(ctk.CTkFrame):
     def _load_folder_icon_async(self):
         """异步加载文件夹预览图标"""
         try:
-            from PIL import ImageTk
+            from PIL import Image, ImageTk
 
             apps = self.app_data.get("apps", [])
             if not apps:

@@ -3,6 +3,7 @@
 文件夹窗口模块 - 点击文件夹后弹出，显示文件夹内的应用
 """
 import os
+import sys
 import logging
 import customtkinter as ctk
 
