@@ -2310,6 +2310,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     self.app_config[self.current_category].append(app_info)
                     added_count += 1
                     logger.info(f"添加应用: {app_info['name']} -> {app_info['path']}")
+                    # 如果是从桌面拖入的启动程序文件，删除桌面原文件
+                    self._delete_desktop_source_if_program(file_path)
             
             except Exception as e:
                 logger.debug(f"处理文件失败 {file_path}: {e}")
@@ -2325,6 +2327,35 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         else:
             self._show_message("未添加新应用（已存在或无效）")
 
+
+    def _delete_desktop_source_if_program(self, file_path):
+        """如果拖入的文件来自桌面且是启动程序文件，则删除桌面原文件"""
+        try:
+            # 获取桌面路径（Windows桌面文件夹实际名称始终是Desktop）
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+            if not os.path.exists(desktop_path):
+                # 兼容中文系统的桌面文件夹
+                desktop_path = os.path.join(os.path.expanduser("~"), "桌面")
+
+            file_path_abs = os.path.abspath(file_path)
+            desktop_path_abs = os.path.abspath(desktop_path)
+
+            # 不在桌面则不处理
+            if not file_path_abs.startswith(desktop_path_abs):
+                return
+
+            # 只删除启动程序文件
+            program_exts = {'.exe', '.lnk', '.bat', '.cmd', '.com', '.msi', '.appref-ms'}
+            file_ext = os.path.splitext(file_path_abs)[1].lower()
+            if file_ext not in program_exts:
+                return
+
+            # 删除原文件
+            if os.path.exists(file_path_abs):
+                os.remove(file_path_abs)
+                logger.info(f"已删除桌面原文件: {file_path_abs}")
+        except Exception as e:
+            logger.debug(f"删除桌面原文件失败: {e}")
 
     def _get_folders(self, category=None):
         """获取指定分类的文件夹列表"""
