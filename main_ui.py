@@ -2375,13 +2375,13 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         appearance_mode = ctk.get_appearance_mode()
         if appearance_mode == "Dark":
-            bg_color = "#2B2B2B"
+            bg_color = "#323232"
             fg_color = "#FFFFFF"
-            hover_color = "#404040"
+            hover_color = "#3D3D3D"
         else:
-            bg_color = "#F3F3F3"
-            fg_color = "#000000"
-            hover_color = "#E5E5E5"
+            bg_color = "#FFFFFF"
+            fg_color = "#1A1A1A"
+            hover_color = "#E8F0FE"
 
         menu_window = tk.Toplevel(self)
         menu_window.overrideredirect(True)
@@ -2395,7 +2395,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
-        menu_frame.pack(fill="both", expand=True, padx=3, pady=3)
+        menu_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
         def do_create():
             menu_window.destroy()
@@ -2403,18 +2403,19 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         btn = ctk.CTkButton(
             menu_frame,
-            text="新建文件夹",
+            text="    新建文件夹",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
             command=do_create,
             anchor="w",
-            height=28,
+            height=32,
+            corner_radius=4,
             font=ctk.CTkFont(size=13)
         )
-        btn.pack(fill="x", padx=3)
+        btn.pack(fill="x", padx=4, pady=1)
 
-        width = 120
+        width = 130
         height = 40
 
         # 屏幕边界检测

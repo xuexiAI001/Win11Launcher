@@ -196,15 +196,15 @@ class AppGridItem(ctk.CTkFrame):
         """文件夹右键菜单"""
         appearance_mode = ctk.get_appearance_mode()
         if appearance_mode == "Dark":
-            bg_color = "#2B2B2B"
+            bg_color = "#323232"
             fg_color = "#FFFFFF"
-            hover_color = "#404040"
+            hover_color = "#3D3D3D"
             separator_color = "#3C3C3C"
         else:
-            bg_color = "#F3F3F3"
-            fg_color = "#000000"
-            hover_color = "#E5E5E5"
-            separator_color = "#E1E1E1"
+            bg_color = "#FFFFFF"
+            fg_color = "#1A1A1A"
+            hover_color = "#E8F0FE"
+            separator_color = "#E5E5E5"
 
         root = self.winfo_toplevel()
 
@@ -230,33 +230,34 @@ class AppGridItem(ctk.CTkFrame):
         root._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
-        menu_frame.pack(fill="both", expand=True, padx=3, pady=3)
+        menu_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
         def add_item(label, command):
             btn = ctk.CTkButton(
                 menu_frame,
-                text=label,
+                text="    " + label,
                 fg_color="transparent",
                 hover_color=hover_color,
                 text_color=fg_color,
                 command=lambda: (command(), menu_window.destroy()),
                 anchor="w",
-                height=28,
+                height=32,
+                corner_radius=4,
                 font=ctk.CTkFont(size=13)
             )
-            btn.pack(fill="x", padx=3)
+            btn.pack(fill="x", padx=4, pady=1)
 
         def add_sep():
-            sep = ctk.CTkFrame(menu_frame, height=2, fg_color=separator_color)
-            sep.pack(fill="x", padx=10, pady=4)
+            sep = ctk.CTkFrame(menu_frame, height=1, fg_color=separator_color)
+            sep.pack(fill="x", padx=12, pady=5)
 
         add_item("打开", self._open_folder)
         add_item("重命名", self._rename_folder)
         add_sep()
         add_item("删除文件夹", self._delete_folder)
 
-        width = 120
-        height = 120
+        width = 130
+        height = 3 * 34 + 11 + 8
 
         # 屏幕边界检测
         screen_w = menu_window.winfo_screenwidth()
@@ -401,15 +402,15 @@ class AppGridItem(ctk.CTkFrame):
 
 
         if appearance_mode == "Dark":
-            bg_color = "#2B2B2B"
+            bg_color = "#323232"
             fg_color = "#FFFFFF"
-            hover_color = "#404040"
+            hover_color = "#3D3D3D"
             separator_color = "#3C3C3C"
         else:
-            bg_color = "#F3F3F3"
-            fg_color = "#000000"
-            hover_color = "#E5E5E5"
-            separator_color = "#E1E1E1"
+            bg_color = "#FFFFFF"
+            fg_color = "#1A1A1A"
+            hover_color = "#E8F0FE"
+            separator_color = "#E5E5E5"
 
         root = self.winfo_toplevel()
 
@@ -463,7 +464,7 @@ class AppGridItem(ctk.CTkFrame):
         root._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
-        menu_frame.pack(fill="both", expand=True, padx=3, pady=3)
+        menu_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
         submenu = None
 
@@ -492,32 +493,33 @@ class AppGridItem(ctk.CTkFrame):
             submenu.attributes("-transparentcolor", "#000001")
             submenu.attributes("-alpha", 0.95)
 
-            submenu_height = len(self.parent_window.categories) * 28 + 8
-            submenu_x = x + 165
-            submenu_y = y + 50
+            submenu_height = len(self.parent_window.categories) * 34 + 8
+            submenu_x = x + 155
+            submenu_y = y + 40
 
             screen_height = submenu.winfo_screenheight()
             if submenu_y + submenu_height > screen_height:
                 submenu_y = submenu_y - submenu_height - 50
 
-            submenu.geometry(f"80x{submenu_height}+{submenu_x}+{submenu_y}")
+            submenu.geometry(f"120x{submenu_height}+{submenu_x}+{submenu_y}")
 
             submenu_frame = ctk.CTkFrame(submenu, fg_color=bg_color, corner_radius=8)
-            submenu_frame.pack(fill="both", expand=True, padx=3, pady=3)
+            submenu_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
             for cat in self.parent_window.categories:
                 btn = ctk.CTkButton(
                     submenu_frame,
-                    text=cat,
+                    text="    " + cat,
                     fg_color="transparent",
                     hover_color=hover_color,
                     text_color=fg_color,
                     command=lambda c=cat: (self._do_move_category(c), menu_window.destroy()),
                     anchor="w",
-                    height=28,
+                    height=32,
+                    corner_radius=4,
                     font=ctk.CTkFont(size=13)
                 )
-                btn.pack(fill="x", padx=3)
+                btn.pack(fill="x", padx=4, pady=1)
 
             root._current_submenu = submenu
 
@@ -555,21 +557,22 @@ class AppGridItem(ctk.CTkFrame):
 
         def add_menu_item(label, command, is_separator=False):
             if is_separator:
-                sep = ctk.CTkFrame(menu_frame, height=2, fg_color=separator_color)
-                sep.pack(fill="x", padx=10, pady=4)
+                sep = ctk.CTkFrame(menu_frame, height=1, fg_color=separator_color)
+                sep.pack(fill="x", padx=12, pady=5)
             else:
                 btn = ctk.CTkButton(
                     menu_frame,
-                    text=label,
+                    text="    " + label,
                     fg_color="transparent",
                     hover_color=hover_color,
                     text_color=fg_color,
                     command=lambda: (command(), menu_window.destroy()),
                     anchor="w",
-                    height=28,
+                    height=32,
+                    corner_radius=4,
                     font=ctk.CTkFont(size=13)
                 )
-                btn.pack(fill="x", padx=3)
+                btn.pack(fill="x", padx=4, pady=1)
 
         add_menu_item("启动", self._launch_app)
         add_menu_item("管理员身份启动", self._launch_as_admin)
@@ -577,15 +580,16 @@ class AppGridItem(ctk.CTkFrame):
 
         move_btn = ctk.CTkButton(
             menu_frame,
-            text="移动分类            ＞",
+            text="    移动分类              ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
             anchor="w",
-            height=28,
+            height=32,
+            corner_radius=4,
             font=ctk.CTkFont(size=13)
         )
-        move_btn.pack(fill="x", padx=3)
+        move_btn.pack(fill="x", padx=4, pady=1)
         move_btn.bind("<Enter>", on_move_btn_enter)
         move_btn.bind("<Leave>", on_move_btn_leave)
 
@@ -617,37 +621,37 @@ class AppGridItem(ctk.CTkFrame):
             folder_submenu.attributes("-alpha", 0.95)
 
             folders = self.parent_window._get_folders() if self.parent_window else []
-            submenu_height = (len(folders) + 2) * 28 + 8
-            submenu_x = x + 165
-            submenu_y = y + 80
+            submenu_height = (len(folders) + 2) * 34 + 11
+            submenu_x = x + 155
+            submenu_y = y + 75
             screen_h = folder_submenu.winfo_screenheight()
             if submenu_y + submenu_height > screen_h:
                 submenu_y = submenu_y - submenu_height - 80
-            folder_submenu.geometry(f"120x{submenu_height}+{submenu_x}+{submenu_y}")
+            folder_submenu.geometry(f"140x{submenu_height}+{submenu_x}+{submenu_y}")
 
             sf_frame = ctk.CTkFrame(folder_submenu, fg_color=bg_color, corner_radius=8)
-            sf_frame.pack(fill="both", expand=True, padx=3, pady=3)
+            sf_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
             for folder in folders:
                 fname = folder.get("name", "")
                 btn = ctk.CTkButton(
-                    sf_frame, text=fname, fg_color="transparent",
+                    sf_frame, text="    " + fname, fg_color="transparent",
                     hover_color=hover_color, text_color=fg_color,
                     command=lambda f=fname: (self.parent_window._move_app_to_folder(self.app_data, f), menu_window.destroy()),
-                    anchor="w", height=28, font=ctk.CTkFont(size=13)
+                    anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13)
                 )
-                btn.pack(fill="x", padx=3)
+                btn.pack(fill="x", padx=4, pady=1)
 
             # 分隔线
-            ctk.CTkFrame(sf_frame, height=2, fg_color=separator_color).pack(fill="x", padx=10, pady=4)
+            ctk.CTkFrame(sf_frame, height=1, fg_color=separator_color).pack(fill="x", padx=12, pady=5)
 
             # 新建文件夹
             ctk.CTkButton(
-                sf_frame, text="新建文件夹...", fg_color="transparent",
+                sf_frame, text="    新建文件夹...", fg_color="transparent",
                 hover_color=hover_color, text_color=fg_color,
                 command=lambda: (self._create_and_move_to_folder(), menu_window.destroy()),
-                anchor="w", height=28, font=ctk.CTkFont(size=13)
-            ).pack(fill="x", padx=3)
+                anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13)
+            ).pack(fill="x", padx=4, pady=1)
 
             root._current_folder_submenu = folder_submenu
 
@@ -687,15 +691,16 @@ class AppGridItem(ctk.CTkFrame):
 
         folder_btn = ctk.CTkButton(
             menu_frame,
-            text="移动到文件夹        ＞",
+            text="    移动到文件夹          ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
             anchor="w",
-            height=28,
+            height=32,
+            corner_radius=4,
             font=ctk.CTkFont(size=13)
         )
-        folder_btn.pack(fill="x", padx=3)
+        folder_btn.pack(fill="x", padx=4, pady=1)
         folder_btn.bind("<Enter>", on_folder_btn_enter)
         folder_btn.bind("<Leave>", on_folder_btn_leave)
 
@@ -709,8 +714,9 @@ class AppGridItem(ctk.CTkFrame):
         add_menu_item("打开文件位置", self._open_file_location)
         add_menu_item("属性", self._show_properties)
 
-        width = 130
-        height = 325
+        width = 150
+        # 动态计算高度：11个菜单项(32px) + 3个分隔线(1px+10px margin) + 上下边距
+        height = 11 * 34 + 3 * 11 + 8
 
         screen_height = menu_window.winfo_screenheight()
         window_bottom = self.winfo_toplevel().winfo_y() + self.winfo_toplevel().winfo_height()
