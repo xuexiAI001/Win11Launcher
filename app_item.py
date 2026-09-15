@@ -15,6 +15,34 @@ from folder_window import FolderWindow
 logger = logging.getLogger("Win11Launcher")
 
 
+def _enable_menu_shadow(menu_win):
+    """给无边框菜单窗口添加 Windows DWM 阴影并移除边框"""
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        hwnd = ctypes.windll.user32.GetParent(menu_win.winfo_id())
+
+        # 移除窗口边框样式
+        GWL_STYLE = -16
+        WS_BORDER = 0x00800000
+        WS_THICKFRAME = 0x00040000
+        style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
+        style &= ~WS_BORDER
+        style &= ~WS_THICKFRAME
+        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style)
+
+        # 启用 DWM 阴影
+        DWMWA_DROPSHADOW = 2
+        val = ctypes.c_int(1)
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            hwnd, DWMWA_DROPSHADOW,
+            ctypes.byref(val), ctypes.sizeof(val)
+        )
+    except Exception as e:
+        logger.debug(f"设置菜单阴影失败: {e}")
+
+
 class AppGridItem(ctk.CTkFrame):
     """应用网格项"""
 
@@ -268,6 +296,8 @@ class AppGridItem(ctk.CTkFrame):
             y = y - height - 10
 
         menu_window.geometry(f"{width}x{height}+{x}+{y}")
+        menu_window.update_idletasks()
+        _enable_menu_shadow(menu_window)
 
         def on_esc(event):
             if menu_window.winfo_exists():
@@ -503,6 +533,8 @@ class AppGridItem(ctk.CTkFrame):
                 submenu_y = submenu_y - submenu_height - 50
 
             submenu.geometry(f"120x{submenu_height}+{submenu_x}+{submenu_y}")
+            submenu.update_idletasks()
+            _enable_menu_shadow(submenu)
 
             submenu_frame = ctk.CTkFrame(submenu, fg_color=bg_color, corner_radius=8)
             submenu_frame.pack(fill="both", expand=True, padx=0, pady=0)
@@ -634,6 +666,8 @@ class AppGridItem(ctk.CTkFrame):
             if submenu_y + submenu_height > screen_h:
                 submenu_y = submenu_y - submenu_height - 80
             folder_submenu.geometry(f"140x{submenu_height}+{submenu_x}+{submenu_y}")
+            folder_submenu.update_idletasks()
+            _enable_menu_shadow(folder_submenu)
 
             sf_frame = ctk.CTkFrame(folder_submenu, fg_color=bg_color, corner_radius=8)
             sf_frame.pack(fill="both", expand=True, padx=0, pady=0)
@@ -725,8 +759,8 @@ class AppGridItem(ctk.CTkFrame):
         add_menu_item("属性", self._show_properties)
 
         width = 165
-        # 动态计算高度：11个菜单项(32px) + 3个分隔线(1px+10px margin) + 上下边距
-        height = 11 * 34 + 3 * 11 + 8
+        # 动态计算高度：11个菜单项(32px+2px pady) + 3个分隔线(1px+10px pady) + 上下边距
+        height = 11 * 34 + 3 * 11 + 12
 
         screen_height = menu_window.winfo_screenheight()
         window_bottom = self.winfo_toplevel().winfo_y() + self.winfo_toplevel().winfo_height()
@@ -735,6 +769,8 @@ class AppGridItem(ctk.CTkFrame):
             y = y - height - 60
 
         menu_window.geometry(f"{width}x{height}+{x}+{y}")
+        menu_window.update_idletasks()
+        _enable_menu_shadow(menu_window)
 
         def on_esc(event):
             close_submenu()

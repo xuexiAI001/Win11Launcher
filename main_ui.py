@@ -59,7 +59,7 @@ from PIL import Image, ImageTk
 from icon_extractor import get_app_icon
 from app_info import get_app_info
 from drop_zone import DropZone
-from app_item import AppGridItem
+from app_item import AppGridItem, _enable_menu_shadow
 from tray_icon import TrayManager
 from folder_window import FolderWindow
 
@@ -2427,6 +2427,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             y = y - height - 10
 
         menu_window.geometry(f"{width}x{height}+{x}+{y}")
+        menu_window.update_idletasks()
+        _enable_menu_shadow(menu_window)
 
         def on_esc(event):
             if menu_window.winfo_exists():
