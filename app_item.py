@@ -259,10 +259,11 @@ class AppGridItem(ctk.CTkFrame):
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
         menu_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
-        def add_item(label, command):
+        def add_item(label, command, icon=""):
+            display_text = f"  {icon}  {label}" if icon else f"    {label}"
             btn = ctk.CTkButton(
                 menu_frame,
-                text="    " + label,
+                text=display_text,
                 fg_color="transparent",
                 hover_color=hover_color,
                 text_color=fg_color,
@@ -278,10 +279,10 @@ class AppGridItem(ctk.CTkFrame):
             sep = ctk.CTkFrame(menu_frame, height=1, fg_color=separator_color)
             sep.pack(fill="x", padx=12, pady=5)
 
-        add_item("打开", self._open_folder)
-        add_item("重命名", self._rename_folder)
+        add_item("打开", self._open_folder, icon="▶")
+        add_item("重命名", self._rename_folder, icon="✎")
         add_sep()
-        add_item("删除文件夹", self._delete_folder)
+        add_item("删除文件夹", self._delete_folder, icon="✕")
 
         width = 130
         height = 3 * 34 + 11 + 16
@@ -586,14 +587,15 @@ class AppGridItem(ctk.CTkFrame):
                 root.after_cancel(root._close_submenu_timer)
             root._close_submenu_timer = root.after(120, close_submenu)
 
-        def add_menu_item(label, command, is_separator=False):
+        def add_menu_item(label, command, icon="", is_separator=False):
             if is_separator:
                 sep = ctk.CTkFrame(menu_frame, height=1, fg_color=separator_color)
                 sep.pack(fill="x", padx=12, pady=5)
             else:
+                display_text = f"  {icon}  {label}" if icon else f"    {label}"
                 btn = ctk.CTkButton(
                     menu_frame,
-                    text="    " + label,
+                    text=display_text,
                     fg_color="transparent",
                     hover_color=hover_color,
                     text_color=fg_color,
@@ -605,13 +607,13 @@ class AppGridItem(ctk.CTkFrame):
                 )
                 btn.pack(fill="x", padx=4, pady=1)
 
-        add_menu_item("启动", self._launch_app)
-        add_menu_item("管理员身份启动", self._launch_as_admin)
+        add_menu_item("启动", self._launch_app, icon="▶")
+        add_menu_item("管理员身份启动", self._launch_as_admin, icon="⬆")
         add_menu_item("", None, is_separator=True)
 
         move_btn = ctk.CTkButton(
             menu_frame,
-            text="    移动分类              ›",
+            text="  ⇄  移动分类            ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -625,7 +627,7 @@ class AppGridItem(ctk.CTkFrame):
         move_btn.bind("<Leave>", on_move_btn_leave)
 
         def set_move_arrow(arrow):
-            move_btn.configure(text=f"    移动分类              {arrow}")
+            move_btn.configure(text=f"  ⇄  移动分类            {arrow}")
 
         # 移动到文件夹 - 二级菜单
         folder_submenu = None
@@ -728,7 +730,7 @@ class AppGridItem(ctk.CTkFrame):
 
         folder_btn = ctk.CTkButton(
             menu_frame,
-            text="    移动到文件夹          ›",
+            text="  →  移动到文件夹        ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -742,17 +744,17 @@ class AppGridItem(ctk.CTkFrame):
         folder_btn.bind("<Leave>", on_folder_btn_leave)
 
         def set_folder_arrow(arrow):
-            folder_btn.configure(text=f"    移动到文件夹          {arrow}")
+            folder_btn.configure(text=f"  →  移动到文件夹        {arrow}")
 
         add_menu_item("", None, is_separator=True)
-        add_menu_item("更换图标", self._change_icon)
-        add_menu_item("重命名", self._rename_app)
+        add_menu_item("更换图标", self._change_icon, icon="◉")
+        add_menu_item("重命名", self._rename_app, icon="✎")
         add_menu_item("", None, is_separator=True)
-        add_menu_item("删除应用", self._delete_app)
-        add_menu_item("清空当前分类", self._clear_category)
+        add_menu_item("删除应用", self._delete_app, icon="✕")
+        add_menu_item("清空当前分类", self._clear_category, icon="⊘")
         add_menu_item("", None, is_separator=True)
-        add_menu_item("打开文件位置", self._open_file_location)
-        add_menu_item("属性", self._show_properties)
+        add_menu_item("打开文件位置", self._open_file_location, icon="⊞")
+        add_menu_item("属性", self._show_properties, icon="ⓘ")
 
         width = 170
         # 动态计算高度：11个菜单项(32px+2px pady) + 3个分隔线(1px+10px pady) + 上下边距(留足余量)

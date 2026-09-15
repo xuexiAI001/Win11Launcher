@@ -2402,7 +2402,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         btn = ctk.CTkButton(
             menu_frame,
-            text="    新建文件夹",
+            text="  ➕  新建文件夹",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
