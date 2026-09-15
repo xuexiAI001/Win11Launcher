@@ -2365,28 +2365,85 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             logger.debug(f"删除桌面原文件失败: {e}")
 
     def _start_install_monitor(self):
-        """启动新安装应用监控（后台线程）"""
+        """启动新安装应用监控（事件驱动，ReadDirectoryChangesW）"""
         try:
             self._known_installed_apps = self._scan_start_menu_apps()
             self._install_monitor_running = True
-            logger.debug(f"安装监控已启动，已知应用数: {len(self._known_installed_apps)}")
+            logger.debug(f"安装监控已启动（事件驱动），已知应用数: {len(self._known_installed_apps)}")
 
             import threading
-            def monitor_loop():
-                import time
-                while self._install_monitor_running:
-                    time.sleep(60)
-                    if not self._install_monitor_running:
-                        break
-                    try:
-                        self._check_new_installs()
-                    except Exception as e:
-                        logger.debug(f"安装监控检查失败: {e}")
-
-            t = threading.Thread(target=monitor_loop, daemon=True)
+            t = threading.Thread(target=self._fs_monitor_loop, daemon=True)
             t.start()
         except Exception as e:
             logger.debug(f"启动安装监控失败: {e}")
+
+    def _fs_monitor_loop(self):
+        """文件系统监控循环 - 使用ReadDirectoryChangesW，事件驱动零占用"""
+        try:
+            import win32file
+            import win32con
+
+            start_menu_paths = [
+                os.path.join(os.environ.get('PROGRAMDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+                os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+            ]
+
+            # 为每个开始菜单目录创建监控句柄
+            handles = []
+            for sm_path in start_menu_paths:
+                if os.path.exists(sm_path):
+                    hDir = win32file.CreateFile(
+                        sm_path,
+                        win32con.GENERIC_READ,
+                        win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
+                        None,
+                        win32con.OPEN_EXISTING,
+                        win32con.FILE_FLAG_BACKUP_SEMANTICS | win32con.FILE_FLAG_OVERLAPPED,
+                        None
+                    )
+                    handles.append((hDir, sm_path))
+
+            if not handles:
+                logger.debug("无可用的开始菜单目录，监控未启动")
+                return
+
+            while self._install_monitor_running:
+                for hDir, sm_path in handles:
+                    if not self._install_monitor_running:
+                        break
+                    try:
+                        # 阻塞等待文件变化（零CPU占用）
+                        results = win32file.ReadDirectoryChangesW(
+                            hDir,
+                            8192,
+                            True,  # 监控子目录
+                            win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME,
+                            None,
+                            None
+                        )
+                        # 检测到变化，延迟2秒等待文件写入完成，然后检查新应用
+                        has_new_lnk = any(
+                            action in (1, 5) and filename.lower().endswith('.lnk')
+                            for action, filename in results
+                        )
+                        if has_new_lnk:
+                            import time
+                            time.sleep(2)  # 等待快捷方式写入完成
+                            self.after(0, self._check_new_installs)
+                    except Exception as e:
+                        if self._install_monitor_running:
+                            logger.debug(f"目录监控异常: {e}")
+                            import time
+                            time.sleep(5)
+
+            # 清理句柄
+            for hDir, _ in handles:
+                try:
+                    win32file.CloseHandle(hDir)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"文件监控循环失败: {e}")
 
     def _scan_start_menu_apps(self):
         """扫描开始菜单中的所有快捷方式，返回应用名称集合"""
