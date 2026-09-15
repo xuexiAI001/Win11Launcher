@@ -1218,7 +1218,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         """显示设置对话框"""
         dialog = ctk.CTkToplevel(self)
         dialog.title("设置")
-        dialog.geometry("500x500")
+        dialog.geometry("500x420")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
@@ -1226,8 +1226,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 居中
         dialog.update_idletasks()
         x = (dialog.winfo_screenwidth() - 500) // 2
-        y = (dialog.winfo_screenheight() - 500) // 2
-        dialog.geometry(f"500x500+{x}+{y}")
+        y = (dialog.winfo_screenheight() - 420) // 2
+        dialog.geometry(f"500x420+{x}+{y}")
 
         # 标题
         title_label = ctk.CTkLabel(
@@ -1235,11 +1235,11 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             text="设置",
             font=ctk.CTkFont(size=20, weight="bold")
         )
-        title_label.pack(pady=20)
+        title_label.pack(pady=15)
 
         # 快捷键设置
         hotkey_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        hotkey_frame.pack(fill="x", padx=30, pady=10)
+        hotkey_frame.pack(fill="x", padx=30, pady=5)
 
         hotkey_label = ctk.CTkLabel(
             hotkey_frame,
@@ -1261,7 +1261,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         # 关闭时最小化到托盘
         tray_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        tray_frame.pack(fill="x", padx=30, pady=10)
+        tray_frame.pack(fill="x", padx=30, pady=5)
 
         ctk.CTkLabel(
             tray_frame,
@@ -1279,14 +1279,14 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         # 主题设置
         theme_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        theme_frame.pack(fill="x", padx=30, pady=10)
+        theme_frame.pack(fill="x", padx=30, pady=5)
 
         theme_label = ctk.CTkLabel(
             theme_frame,
             text="主题颜色：",
             font=ctk.CTkFont(size=14)
         )
-        theme_label.pack(side="left", pady=10)
+        theme_label.pack(side="left")
 
         # 将ctk返回的英文主题转换为中文
         appearance_mode = ctk.get_appearance_mode()
@@ -1306,7 +1306,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         # 透明度设置
         alpha_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        alpha_frame.pack(fill="x", padx=30, pady=10)
+        alpha_frame.pack(fill="x", padx=30, pady=5)
 
         alpha_label = ctk.CTkLabel(
             alpha_frame,
@@ -1338,7 +1338,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         # 开机自启动设置
         autostart_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        autostart_frame.pack(fill="x", padx=30, pady=10)
+        autostart_frame.pack(fill="x", padx=30, pady=5)
 
         autostart_label = ctk.CTkLabel(
             autostart_frame,
@@ -1358,7 +1358,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         # 分类管理按钮（点击弹出独立窗口）
         cat_btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        cat_btn_frame.pack(fill="x", padx=30, pady=(15, 5))
+        cat_btn_frame.pack(fill="x", padx=30, pady=(10, 5))
 
         ctk.CTkButton(
             cat_btn_frame,
@@ -1408,7 +1408,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             fg_color=("#0078D4", "#005A9E"),
             command=lambda: self._save_settings(dialog)
         )
-        save_btn.pack(pady=20)
+        save_btn.pack(pady=15)
 
         # 取消按钮
         cancel_btn = ctk.CTkButton(
@@ -1421,7 +1421,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             text_color=("#1A1A1A", "#E0E0E0"),
             command=dialog.destroy
         )
-        cancel_btn.pack(pady=10)
+        cancel_btn.pack(pady=5)
 
     def _change_theme(self, choice):
         """更改主题（带平滑过渡效果）"""
