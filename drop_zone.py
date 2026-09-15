@@ -11,10 +11,8 @@ class DropZone(ctk.CTkFrame):
     def __init__(self, parent, drop_callback):
         super().__init__(
             parent,
-            fg_color=("#EFEFEF", "#1A1A1A"),
-            corner_radius=8,
-            border_width=2,
-            border_color=("#0078D4", "#0078D4")
+            fg_color="transparent",
+            corner_radius=0
         )
         self.drop_callback = drop_callback
 
@@ -24,6 +22,6 @@ class DropZone(ctk.CTkFrame):
             self,
             text="拖拽文件到这里添加应用",
             font=ctk.CTkFont(size=14),
-            text_color=("#666666", "#666666")
+            text_color=("#888888", "#666666")
         )
         self.label.pack(expand=True)
