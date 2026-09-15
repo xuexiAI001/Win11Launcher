@@ -12,6 +12,7 @@ from tkinter import filedialog
 from PIL import ImageTk
 from icon_extractor import get_app_icon
 from folder_window import FolderWindow
+from folder_icon import get_cached_folder_icon
 
 logger = logging.getLogger("Win11Launcher")
 
@@ -1207,7 +1208,7 @@ class AppGridItem(ctk.CTkFrame):
     def _setup_ui(self, lazy_load=True):
         """设置UI"""
         if self.is_folder:
-            # 文件夹：显示文件夹图标 + 名称 + 应用数量
+            # 文件夹：先显示默认图标，异步加载预览图标
             self.icon_label = ctk.CTkLabel(
                 self,
                 text="\U0001F4C1",  # 📁 文件夹emoji
@@ -1229,6 +1230,10 @@ class AppGridItem(ctk.CTkFrame):
                 justify="center"
             )
             name_label.pack(pady=(0, 8))
+
+            # 异步加载文件夹预览图标
+            if lazy_load and app_count > 0:
+                self.after(100, self._load_folder_icon_async)
             return
 
         # 普通应用
@@ -1298,3 +1303,35 @@ class AppGridItem(ctk.CTkFrame):
             future.add_done_callback(on_done)
         else:
             self.after_idle(lambda: update_ui(extract_icon()))
+
+    def _load_folder_icon_async(self):
+        """异步加载文件夹预览图标"""
+        try:
+            from PIL import ImageTk
+
+            apps = self.app_data.get("apps", [])
+            if not apps:
+                return
+
+            theme = "dark" if ctk.get_appearance_mode() == "Dark" else "light"
+
+            def generate_and_update():
+                try:
+                    icon = get_cached_folder_icon(apps, size=64, theme=theme)
+                    if icon and hasattr(self, 'icon_label') and self.icon_label.winfo_exists():
+                        photo = ImageTk.PhotoImage(icon.resize((48, 48), Image.LANCZOS))
+                        self._folder_icon_photo = photo
+                        self.after(0, lambda: self.icon_label.configure(
+                            image=photo,
+                            text="",
+                            fg_color="transparent"
+                        ))
+                except Exception as e:
+                    logger.debug(f"加载文件夹预览图标失败: {e}")
+
+            if hasattr(self.parent_window, 'icon_executor'):
+                self.parent_window.icon_executor.submit(generate_and_update)
+            else:
+                generate_and_update()
+        except Exception as e:
+            logger.debug(f"文件夹预览图标加载失败: {e}")
