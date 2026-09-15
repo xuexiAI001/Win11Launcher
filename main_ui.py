@@ -11,6 +11,37 @@ import concurrent.futures
 import logging
 from logging.handlers import RotatingFileHandler
 
+# 日志系统 - 必须在所有使用 logger 的代码之前初始化
+APP_NAME = "Win11Launcher"
+LOG_DIR = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME)
+LOG_FILE = os.path.join(LOG_DIR, 'launcher.log')
+
+def _setup_logger():
+    """配置日志系统：文件输出 + 轮转，打包后仍可记录"""
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+    except Exception:
+        pass
+    logger = logging.getLogger(APP_NAME)
+    logger.setLevel(logging.DEBUG)
+    if logger.handlers:
+        return logger
+    handler = RotatingFileHandler(
+        LOG_FILE,
+        maxBytes=2 * 1024 * 1024,
+        backupCount=3,
+        encoding='utf-8'
+    )
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    logger.addHandler(handler)
+    return logger
+
+logger = _setup_logger()
+
+
 # 高DPI设置 - 在导入任何GUI库之前设置
 if sys.platform == "win32":
     try:
@@ -63,42 +94,9 @@ GRID_PADDING = 120  # 网格区域的额外边距补偿（增加以避免卡片�
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
-APP_NAME = "Win11Launcher"
 CONFIG_FILE = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME, "launcher_config.json")
 ICON_CACHE_DIR = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME, "icon_cache")
 
-
-# ============================================================
-# 日志系统
-# ============================================================
-LOG_DIR = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME)
-LOG_FILE = os.path.join(LOG_DIR, 'launcher.log')
-
-def _setup_logger():
-    """配置日志系统：文件输出 + 轮转，打包后仍可记录"""
-    try:
-        os.makedirs(LOG_DIR, exist_ok=True)
-    except Exception:
-        pass
-    logger = logging.getLogger(APP_NAME)
-    logger.setLevel(logging.DEBUG)
-    # 避免重复添加handler
-    if logger.handlers:
-        return logger
-    handler = RotatingFileHandler(
-        LOG_FILE,
-        maxBytes=2 * 1024 * 1024,  # 2MB
-        backupCount=3,
-        encoding='utf-8'
-    )
-    handler.setFormatter(logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    ))
-    logger.addHandler(handler)
-    return logger
-
-logger = _setup_logger()
 
 def _ensure_config_dir():
     """确保配置目录存在"""
