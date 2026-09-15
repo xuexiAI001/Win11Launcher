@@ -171,19 +171,46 @@ class FolderWindow(ctk.CTkToplevel):
                 row += 1
 
     def _add_remove_from_folder_menu(self, item, app_data):
-        """给文件夹内的应用添加'移出文件夹'右键菜单"""
-        original_right_click = item._on_right_click
+        """给文件夹内的应用添加右键菜单（移出文件夹、打开文件位置）"""
+        import tkinter as tk
 
-        def enhanced_right_click(event):
-            # 先显示原始菜单
-            original_right_click(event)
-            # 额外添加移出选项（通过在菜单后追加）
-            # 简化处理：直接提供移出功能
-            self._remove_app_from_folder(app_data)
+        def show_folder_item_menu(event):
+            try:
+                # 关闭可能存在的旧菜单
+                if hasattr(self, '_folder_item_menu') and self._folder_item_menu:
+                    try:
+                        self._folder_item_menu.destroy()
+                    except Exception:
+                        pass
 
-        # 绑定中键点击移出文件夹（避免干扰原右键菜单）
+                menu = tk.Menu(self, tearoff=0)
+                self._folder_item_menu = menu
+
+                menu.add_command(label="移出文件夹", command=lambda: self._remove_app_from_folder(app_data))
+                menu.add_separator()
+                menu.add_command(label="打开文件位置", command=lambda: self._open_file_location(app_data))
+
+                # 显示菜单
+                menu.tk_popup(event.x_root, event.y_root)
+            except Exception as e:
+                logger.debug(f"显示文件夹项菜单失败: {e}")
+
+        # 绑定右键
+        item.bind("<Button-3>", show_folder_item_menu)
+        item.icon_label.bind("<Button-3>", show_folder_item_menu)
+        # 中键也可以移出
         item.bind("<Button-2>", lambda e: self._remove_app_from_folder(app_data))
         item.icon_label.bind("<Button-2>", lambda e: self._remove_app_from_folder(app_data))
+
+    def _open_file_location(self, app_data):
+        """打开应用文件所在位置"""
+        try:
+            import subprocess
+            app_path = app_data.get("path", "")
+            if app_path and os.path.exists(app_path):
+                subprocess.Popen(['explorer.exe', '/select,', app_path])
+        except Exception as e:
+            logger.debug(f"打开文件位置失败: {e}")
 
     def _remove_app_from_folder(self, app_data):
         """将应用移出文件夹，回到主分类"""
