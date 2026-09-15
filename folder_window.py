@@ -30,6 +30,14 @@ class FolderWindow(ctk.CTkToplevel):
         self.geometry("500x400")
         self.configure(fg_color=("#F3F3F3", "#202020"))
 
+        # 关键：设置为父窗口的临时窗口，确保始终在主窗口之上
+        self.transient(parent)
+        self.attributes("-topmost", True)
+        self.lift()
+        self.focus_force()
+        # 延迟再次提升，防止主窗口抢焦点
+        self.after(100, self._ensure_on_top)
+
         # 居中
         self.update_idletasks()
         x = (self.winfo_screenwidth() - 500) // 2
@@ -59,6 +67,14 @@ class FolderWindow(ctk.CTkToplevel):
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
         self._render_apps()
+
+    def _ensure_on_top(self):
+        """确保窗口在最顶层"""
+        try:
+            self.lift()
+            self.focus_force()
+        except Exception:
+            pass
 
     def _render_apps(self):
         """渲染文件夹内的应用"""
