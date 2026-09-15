@@ -60,6 +60,7 @@ from icon_extractor import get_app_icon
 from app_info import get_app_info
 from drop_zone import DropZone
 from app_item import AppGridItem
+from tray_icon import TrayManager
 
 # 尝试导入拖放库
 try:
@@ -185,6 +186,11 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self.after(350, self._setup_titlebar_color)
         # 设置全局快捷键
         self._setup_global_hotkey()
+        # 系统托盘
+        self._tray_manager = TrayManager(self)
+        self._tray_manager.start()
+        self._minimize_to_tray = True  # 关闭时最小化到托盘
+
 
         # 设置任务栏图标（让无边框窗口在任务栏显示）
         self._setup_taskbar_icon()
@@ -203,14 +209,29 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self.destroy = self._on_destroy
 
     def _on_destroy(self):
-        """窗口关闭前清理资源"""
+        """窗口关闭：默认最小化到托盘，而非退出"""
+        if getattr(self, '_minimize_to_tray', True):
+            try:
+                self.withdraw()
+                logger.debug("窗口已最小化到托盘")
+            except Exception as e:
+                logger.debug(f"最小化到托盘失败: {e}")
+                self._force_quit()
+        else:
+            self._force_quit()
+
+    def _force_quit(self):
+        """真正退出程序"""
         try:
+            if hasattr(self, '_tray_manager'):
+                self._tray_manager.stop()
             if hasattr(self, 'icon_executor'):
                 self.icon_executor.shutdown(wait=False, cancel_futures=True)
+            if hasattr(self, '_hotkey_listener'):
+                self._hotkey_listener.stop()
         except Exception:
             pass
         self._original_destroy()
-
 
     def _setup_glass_effect(self):
         """设置Windows 11亚克力磨砂效果和窗口圆角"""
@@ -698,20 +719,44 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             logger.debug(f"切换窗口可见性失败: {e}")
 
     def _setup_global_hotkey(self):
-        """设置全局快捷键"""
+        """设置全局快捷键 - 支持自定义"""
         if not HAS_HOTKEY:
             logger.debug("全局快捷键不可用（需安装pynput）")
             return
-        
+
+        # 停止旧的监听器
+        if hasattr(self, '_hotkey_listener') and self._hotkey_listener:
+            self._hotkey_listener.stop()
+
+        # 从配置读取快捷键，默认 Ctrl+Shift+L
+        hotkey_str = getattr(self, 'hotkey_var', None)
+        if hotkey_str:
+            hotkey_str = hotkey_str.get()
+        if not hotkey_str:
+            hotkey_str = "Ctrl+Shift+L"
+
+        # 转换为 pynput 格式：Ctrl+Shift+L -> <ctrl>+<shift>+l
+        pynput_key = self._convert_hotkey_format(hotkey_str)
+
         try:
-            # 解析快捷键 Ctrl+Shift+L
             self._hotkey_listener = keyboard.GlobalHotKeys({
-                '<ctrl>+<shift>+l': self._toggle_visibility
+                pynput_key: self._toggle_visibility
             })
             self._hotkey_listener.start()
-            logger.debug("全局快捷键 Ctrl+Shift+L 已注册")
+            logger.debug(f"全局快捷键 {hotkey_str} 已注册")
         except Exception as e:
             logger.debug(f"设置全局快捷键失败: {e}")
+
+    def _convert_hotkey_format(self, hotkey_str):
+        """将 Ctrl+Shift+L 格式转换为 pynput 的 <ctrl>+<shift>+l 格式"""
+        parts = hotkey_str.lower().replace(' ', '').split('+')
+        converted = []
+        for part in parts:
+            if part in ('ctrl', 'alt', 'shift', 'win', 'cmd'):
+                converted.append(f'<{part}>')
+            else:
+                converted.append(part)
+        return '+'.join(converted)
 
     def _set_window_icon(self):
         """设置窗口图标"""
@@ -1212,6 +1257,25 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         )
         hotkey_entry.pack(side="left", padx=10)
 
+
+        # 关闭时最小化到托盘
+        tray_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        tray_frame.pack(fill="x", padx=30, pady=10)
+
+        ctk.CTkLabel(
+            tray_frame,
+            text="关闭时最小化到托盘",
+            font=ctk.CTkFont(size=13)
+        ).pack(side="left")
+
+        self.tray_var = ctk.BooleanVar(value=getattr(self, '_minimize_to_tray', True))
+        ctk.CTkSwitch(
+            tray_frame,
+            text="",
+            variable=self.tray_var,
+            width=40
+        ).pack(side="right")
+
         # 主题设置
         theme_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         theme_frame.pack(fill="x", padx=30, pady=10)
@@ -1487,6 +1551,13 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         """保存设置"""
         # 保存快捷键
         new_hotkey = self.hotkey_var.get()
+
+        # 保存托盘设置
+        if hasattr(self, 'tray_var'):
+            self._minimize_to_tray = self.tray_var.get()
+
+        # 重新注册快捷键
+        self._setup_global_hotkey()
         logger.debug(f"保存快捷键: {new_hotkey}")
 
         # 保存主题
