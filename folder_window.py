@@ -13,28 +13,32 @@ logger = logging.getLogger("Win11Launcher")
 class FolderWindow(ctk.CTkToplevel):
     """文件夹内容窗口"""
 
-    def __init__(self, parent, folder_data, folder_key, on_changed=None):
+    def __init__(self, parent, folder_data, folder_key, on_changed=None, anchor_x=None, anchor_y=None):
         """
         Args:
             parent: 主窗口
             folder_data: 文件夹数据 dict (含 name, apps)
             folder_key: 文件夹标识 (分类名_文件夹名)
             on_changed: 内容变更回调
+            anchor_x, anchor_y: 动画起始位置（文件夹图标中心），None则居中
         """
         super().__init__(parent)
         self.parent_window = parent
         self.folder_data = folder_data
         self.folder_key = folder_key
         self.on_changed = on_changed
+        self._anchor_x = anchor_x
+        self._anchor_y = anchor_y
+        self._target_w = 500
+        self._target_h = 400
+        self._is_closing = False
 
         self.title(folder_data.get("name", "文件夹"))
-        self.geometry("500x400")
         self.configure(fg_color=("#F3F3F3", "#202020"))
 
-        # 设置透明度（与主窗口保持一致）
+        # 设置目标透明度（与主窗口保持一致）
         alpha = getattr(parent, 'alpha_var', None)
-        alpha_val = alpha.get() if alpha and alpha.get() > 0 else 0.96
-        self.attributes('-alpha', alpha_val)
+        self._target_alpha = alpha.get() if alpha and alpha.get() > 0 else 0.96
 
         # 设置亚克力透明效果（与主窗口保持一致）
         self._setup_acrylic_effect()
@@ -43,15 +47,36 @@ class FolderWindow(ctk.CTkToplevel):
         self.transient(parent)
         self.attributes("-topmost", True)
         self.lift()
-        self.focus_force()
-        # 延迟再次提升，防止主窗口抢焦点
-        self.after(100, self._ensure_on_top)
 
-        # 居中
+        # 计算目标位置
         self.update_idletasks()
-        x = (self.winfo_screenwidth() - 500) // 2
-        y = (self.winfo_screenheight() - 400) // 2
-        self.geometry(f"+{x}+{y}")
+        if self._anchor_x is not None and self._anchor_y is not None:
+            self._target_x = self._anchor_x - self._target_w // 2
+            self._target_y = self._anchor_y - self._target_h // 2
+            if self._target_x < 10:
+                self._target_x = 10
+            if self._target_x + self._target_w > self.winfo_screenwidth() - 10:
+                self._target_x = self.winfo_screenwidth() - self._target_w - 10
+            if self._target_y < 10:
+                self._target_y = 10
+            if self._target_y + self._target_h > self.winfo_screenheight() - 10:
+                self._target_y = self.winfo_screenheight() - self._target_h - 10
+        else:
+            self._target_x = (self.winfo_screenwidth() - 500) // 2
+            self._target_y = (self.winfo_screenheight() - 400) // 2
+
+        # 初始状态：图标大小，低透明度
+        if self._anchor_x is not None:
+            start_w = 48
+            start_h = 48
+            start_x = self._anchor_x - start_w // 2
+            start_y = self._anchor_y - start_h // 2
+            self.geometry(f"{start_w}x{start_h}+{start_x}+{start_y}")
+            self.attributes('-alpha', 0.3)
+        else:
+            self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
+            self.attributes('-alpha', self._target_alpha)
+
 
         # 顶部标题栏
         title_frame = ctk.CTkFrame(self, fg_color="transparent", height=40)
@@ -72,13 +97,143 @@ class FolderWindow(ctk.CTkToplevel):
         ).pack(side="left")
 
         # 滚动区域
-        self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        # 内容容器（用于淡入动画）
+        self._content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._content_frame.pack(fill="both", expand=True)
+
+        self.scroll_frame = ctk.CTkScrollableFrame(self._content_frame, fg_color="transparent")
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
         self._render_apps()
 
+        # 初始隐藏内容，等动画完成后淡入
+        if self._anchor_x is not None:
+            self._content_frame.pack_forget()
+
         # 关闭时从主窗口字典中移除
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+
+        # 启动展开动画
+        self.after(10, self._animate_open)
+    def _animate_open(self):
+        """iOS风格展开动画：从图标位置放大到目标大小"""
+        try:
+            if self._anchor_x is None:
+                self._content_frame.pack(fill="both", expand=True)
+                self.focus_force()
+                self.after(100, self._ensure_on_top)
+                return
+
+            frames = 14
+            duration = 250
+            delay = duration // frames
+
+            start_w, start_h = 48, 48
+            start_x = self._anchor_x - start_w // 2
+            start_y = self._anchor_y - start_h // 2
+
+            def animate(frame):
+                if not self.winfo_exists() or self._is_closing:
+                    return
+                if frame >= frames:
+                    self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
+                    self.attributes('-alpha', self._target_alpha)
+                    # 内容淡入
+                    self._content_frame.pack(fill="both", expand=True)
+                    self._fade_in_content()
+                    self.focus_force()
+                    self.after(100, self._ensure_on_top)
+                    return
+
+                t = frame / frames
+                ease = 1 - (1 - t) ** 3  # ease-out
+
+                w = int(start_w + (self._target_w - start_w) * ease)
+                h = int(start_h + (self._target_h - start_h) * ease)
+                x = int(start_x + (self._target_x - start_x) * ease)
+                y = int(start_y + (self._target_y - start_y) * ease)
+                alpha = 0.3 + (self._target_alpha - 0.3) * ease
+
+                self.geometry(f"{w}x{h}+{x}+{y}")
+                self.attributes('-alpha', alpha)
+                self.after(delay, lambda: animate(frame + 1))
+
+            animate(0)
+        except Exception as e:
+            logger.debug(f"展开动画失败: {e}")
+            try:
+                self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
+                self.attributes('-alpha', self._target_alpha)
+                self._content_frame.pack(fill="both", expand=True)
+            except Exception:
+                pass
+
+    def _fade_in_content(self):
+        """内容淡入动画"""
+        try:
+            self._content_frame.attributes('-alpha', 0.0) if hasattr(self._content_frame, 'attributes') else None
+            # CTkFrame不支持alpha，用after延迟显示模拟
+            self._content_frame.pack(fill="both", expand=True)
+        except Exception:
+            pass
+
+    def _animate_close(self, callback=None):
+        """iOS风格回收动画：缩小回图标位置"""
+        if self._is_closing:
+            return
+        self._is_closing = True
+
+        try:
+            if self._anchor_x is None:
+                if callback:
+                    callback()
+                else:
+                    self.destroy()
+                return
+
+            frames = 12
+            duration = 200
+            delay = duration // frames
+
+            start_w = self._target_w
+            start_h = self._target_h
+            start_x = self._target_x
+            start_y = self._target_y
+            end_w, end_h = 48, 48
+            end_x = self._anchor_x - end_w // 2
+            end_y = self._anchor_y - end_h // 2
+
+            def animate(frame):
+                if not self.winfo_exists():
+                    return
+                if frame >= frames:
+                    if callback:
+                        callback()
+                    else:
+                        self.destroy()
+                    return
+
+                t = frame / frames
+                ease = t * t  # ease-in
+
+                w = int(start_w + (end_w - start_w) * ease)
+                h = int(start_h + (end_h - start_h) * ease)
+                x = int(start_x + (end_x - start_x) * ease)
+                y = int(start_y + (end_y - start_y) * ease)
+                alpha = self._target_alpha * (1 - ease)
+
+                self.geometry(f"{w}x{h}+{x}+{y}")
+                self.attributes('-alpha', max(0.1, alpha))
+                self.after(delay, lambda: animate(frame + 1))
+
+            animate(0)
+        except Exception as e:
+            logger.debug(f"回收动画失败: {e}")
+            if callback:
+                callback()
+            else:
+                self.destroy()
 
     def _setup_acrylic_effect(self):
         """使用Windows DWM API设置亚克力效果（与主窗口保持一致）"""
@@ -114,7 +269,7 @@ class FolderWindow(ctk.CTkToplevel):
             logger.debug(f"文件夹窗口亚克力效果异常: {e}")
 
     def _on_close(self):
-        """窗口关闭时清理引用"""
+        """窗口关闭时播放回收动画再销毁"""
         try:
             open_windows = getattr(self.parent_window, '_open_folder_windows', {})
             if self.folder_key in open_windows:
@@ -122,7 +277,14 @@ class FolderWindow(ctk.CTkToplevel):
                 logger.debug(f"关闭文件夹窗口，移除引用: {self.folder_key}")
         except Exception:
             pass
-        self.destroy()
+
+        def do_destroy():
+            try:
+                self.destroy()
+            except Exception:
+                pass
+
+        self._animate_close(do_destroy)
 
     def _ensure_on_top(self):
         """确保窗口在最顶层"""

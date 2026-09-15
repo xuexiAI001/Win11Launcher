@@ -183,12 +183,21 @@ class AppGridItem(ctk.CTkFrame):
                 # 窗口已销毁，移除旧引用
                 del open_windows[folder_key]
 
-            # 创建新窗口
+            # 创建新窗口，传入图标中心位置用于动画
+            try:
+                anchor_x = self.winfo_rootx() + self.winfo_width() // 2
+                anchor_y = self.winfo_rooty() + self.winfo_height() // 2
+            except Exception:
+                anchor_x = None
+                anchor_y = None
+
             win = FolderWindow(
                 self.parent_window,
                 self.app_data,
                 folder_key,
-                on_changed=lambda: self.parent_window._refresh_grid(force=True)
+                on_changed=lambda: self.parent_window._refresh_grid(force=True),
+                anchor_x=anchor_x,
+                anchor_y=anchor_y
             )
             open_windows[folder_key] = win
             logger.debug(f"打开文件夹窗口: {folder_key}")
