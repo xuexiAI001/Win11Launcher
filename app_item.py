@@ -6,6 +6,7 @@
 import os
 import logging
 import customtkinter as ctk
+import tkinter as tk
 from tkinter import filedialog
 from PIL import ImageTk
 from icon_extractor import get_app_icon
@@ -217,11 +218,11 @@ class AppGridItem(ctk.CTkFrame):
                     pass
             root._global_context_menus.clear()
 
-        menu_window = ctk.CTkToplevel(self)
+        menu_window = tk.Toplevel(self)
         menu_window.overrideredirect(True)
         menu_window.attributes("-topmost", True)
         menu_window.attributes("-alpha", 0.95)
-        menu_window.configure(bg="#000001")
+        menu_window.config(bg="#000001")
         menu_window.attributes("-transparentcolor", "#000001")
 
         if not hasattr(root, '_global_context_menus'):
@@ -450,10 +451,10 @@ class AppGridItem(ctk.CTkFrame):
 
         close_all_menus()
 
-        menu_window = ctk.CTkToplevel(self)
+        menu_window = tk.Toplevel(self)
         menu_window.overrideredirect(True)
         menu_window.attributes("-topmost", True)
-        menu_window.configure(bg="#000001")
+        menu_window.config(bg="#000001")
         menu_window.attributes("-transparentcolor", "#000001")
         menu_window.attributes("-alpha", 0.95)
 
@@ -484,10 +485,10 @@ class AppGridItem(ctk.CTkFrame):
             if submenu and submenu.winfo_exists():
                 return
 
-            submenu = ctk.CTkToplevel(self)
+            submenu = tk.Toplevel(self)
             submenu.overrideredirect(True)
             submenu.attributes("-topmost", True)
-            submenu.configure(bg="#000001")
+            submenu.config(bg="#000001")
             submenu.attributes("-transparentcolor", "#000001")
             submenu.attributes("-alpha", 0.95)
 
@@ -608,10 +609,10 @@ class AppGridItem(ctk.CTkFrame):
             nonlocal folder_submenu
             if folder_submenu and folder_submenu.winfo_exists():
                 return
-            folder_submenu = ctk.CTkToplevel(self)
+            folder_submenu = tk.Toplevel(self)
             folder_submenu.overrideredirect(True)
             folder_submenu.attributes("-topmost", True)
-            folder_submenu.configure(bg="#000001")
+            folder_submenu.config(bg="#000001")
             folder_submenu.attributes("-transparentcolor", "#000001")
             folder_submenu.attributes("-alpha", 0.95)
 

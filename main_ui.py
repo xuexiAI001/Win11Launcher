@@ -2383,12 +2383,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             fg_color = "#000000"
             hover_color = "#E5E5E5"
 
-        menu_window = ctk.CTkToplevel(self)
+        menu_window = tk.Toplevel(self)
         menu_window.overrideredirect(True)
         menu_window.attributes("-topmost", True)
-        menu_window.attributes("-alpha", 0.95)
-        menu_window.configure(bg="#000001")
+        menu_window.config(bg="#000001")
         menu_window.attributes("-transparentcolor", "#000001")
+        menu_window.attributes("-alpha", 0.95)
 
         if not hasattr(self, '_global_context_menus'):
             self._global_context_menus = []
