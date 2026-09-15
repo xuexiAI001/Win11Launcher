@@ -6,6 +6,7 @@
 import os
 import logging
 import customtkinter as ctk
+from window_effects import apply_acrylic
 import tkinter as tk
 from tkinter import filedialog
 from PIL import ImageTk
@@ -194,6 +195,7 @@ class AppGridItem(ctk.CTkFrame):
         if not self.parent_window:
             return
         dialog = ctk.CTkToplevel(self)
+        apply_acrylic(dialog)
         dialog.title("新建文件夹")
         dialog.geometry("300x150")
         dialog.resizable(False, False)
@@ -334,6 +336,7 @@ class AppGridItem(ctk.CTkFrame):
     def _rename_folder(self):
         """重命名文件夹"""
         dialog = ctk.CTkToplevel(self)
+        apply_acrylic(dialog)
         dialog.title("重命名文件夹")
         dialog.geometry("300x150")
         dialog.resizable(False, False)
@@ -362,6 +365,7 @@ class AppGridItem(ctk.CTkFrame):
     def _delete_folder(self):
         """删除文件夹（应用移回主分类）"""
         dialog = ctk.CTkToplevel(self)
+        apply_acrylic(dialog)
         dialog.title("确认删除")
         dialog.geometry("350x180")
         dialog.resizable(False, False)
@@ -970,6 +974,7 @@ class AppGridItem(ctk.CTkFrame):
             return
 
         dialog = ctk.CTkToplevel(self)
+        apply_acrylic(dialog)
         dialog.title("确认删除")
         dialog.geometry("350x180")
         dialog.resizable(False, False)
@@ -1037,6 +1042,7 @@ class AppGridItem(ctk.CTkFrame):
             return
 
         dialog = ctk.CTkToplevel(self)
+        apply_acrylic(dialog)
         dialog.title("确认清空")
         dialog.geometry("350x180")
         dialog.resizable(False, False)
@@ -1100,6 +1106,7 @@ class AppGridItem(ctk.CTkFrame):
     def _rename_app(self):
         """重命名应用"""
         dialog = ctk.CTkToplevel(self)
+        apply_acrylic(dialog)
         dialog.title("重命名")
         dialog.geometry("300x150")
         dialog.resizable(False, False)

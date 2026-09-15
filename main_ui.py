@@ -55,6 +55,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 import customtkinter as ctk
+from window_effects import apply_acrylic
 from PIL import Image, ImageTk
 from icon_extractor import get_app_icon
 from app_info import get_app_info
@@ -1224,6 +1225,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
     def _show_settings(self):
         """显示设置对话框"""
         dialog = ctk.CTkToplevel(self)
+        apply_acrylic(dialog)
         dialog.title("设置")
         dialog.geometry("500x420")
         dialog.resizable(False, False)
@@ -1676,6 +1678,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
             # 确认对话框
             confirm = ctk.CTkToplevel(self)
+            apply_acrylic(confirm)
             confirm.title("确认导入")
             confirm.geometry("380x200")
             confirm.resizable(False, False)
@@ -1747,6 +1750,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
     def _show_category_manager(self):
         """弹出独立的分类管理对话框"""
         cat_dialog = ctk.CTkToplevel(self)
+        apply_acrylic(cat_dialog)
         cat_dialog.title("分类管理")
         cat_dialog.geometry("460x440")
         cat_dialog.resizable(False, False)
@@ -1904,6 +1908,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         # 确认对话框
         confirm = ctk.CTkToplevel(self)
+        apply_acrylic(confirm)
         confirm.title("确认删除")
         confirm.geometry("360x180")
         confirm.resizable(False, False)
@@ -1977,6 +1982,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
     def _rename_category_from_settings(self, old_name):
         """从设置界面重命名分类"""
         rename_dlg = ctk.CTkToplevel(self)
+        apply_acrylic(rename_dlg)
         rename_dlg.title("重命名分类")
         rename_dlg.geometry("340x160")
         rename_dlg.resizable(False, False)
@@ -2505,6 +2511,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         """显示新安装应用提示对话框"""
         try:
             dialog = ctk.CTkToplevel(self)
+            apply_acrylic(dialog)
             dialog.title("发现新应用")
             dialog.geometry("380x280")
             dialog.resizable(False, False)
@@ -2582,6 +2589,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 apps = sorted(self._scan_start_menu_apps())
 
             dlg = ctk.CTkToplevel(self)
+            apply_acrylic(dlg)
             dlg.title(f"已扫描应用（共 {len(apps)} 个）")
             dlg.geometry("440x600")
             dlg.resizable(False, False)
@@ -2866,6 +2874,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
     def _create_folder_with_dialog(self):
         """对话框创建文件夹"""
         dialog = ctk.CTkToplevel(self)
+        apply_acrylic(dialog)
         dialog.title("新建文件夹")
         dialog.geometry("300x150")
         dialog.resizable(False, False)
