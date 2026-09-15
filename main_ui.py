@@ -1405,6 +1405,22 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         ).pack(side="left")
 
 
+        # 查看已扫描应用
+        scan_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        scan_frame.pack(fill="x", padx=30, pady=(5, 5))
+
+        ctk.CTkButton(
+            scan_frame,
+            text="查看已扫描应用（开始菜单）",
+            width=440,
+            height=32,
+            corner_radius=8,
+            fg_color=("#E8E8E8", "#2D2D2D"),
+            text_color=("#1A1A1A", "#E0E0E0"),
+            command=self._show_scanned_apps
+        ).pack()
+
+
         # 保存按钮
         save_btn = ctk.CTkButton(
             dialog,
@@ -2553,6 +2569,50 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         except Exception as e:
             logger.debug(f"查找快捷方式失败: {e}")
         return None
+
+    def _show_scanned_apps(self):
+        """显示已扫描的开始菜单应用列表"""
+        try:
+            apps = sorted(getattr(self, '_known_installed_apps', set()))
+            if not apps:
+                apps = sorted(self._scan_start_menu_apps())
+
+            dlg = ctk.CTkToplevel(self)
+            dlg.title(f"已扫描应用（共 {len(apps)} 个）")
+            dlg.geometry("400x500")
+            dlg.resizable(False, False)
+            dlg.transient(self)
+            dlg.grab_set()
+            dlg.update_idletasks()
+            x = (dlg.winfo_screenwidth() - 400) // 2
+            y = (dlg.winfo_screenheight() - 500) // 2
+            dlg.geometry(f"400x500+{x}+{y}")
+
+            ctk.CTkLabel(dlg, text=f"开始菜单共扫描到 {len(apps)} 个应用", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=10)
+
+            scroll_frame = ctk.CTkScrollableFrame(dlg, fg_color="transparent")
+            scroll_frame.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+
+            for idx, app_name in enumerate(apps, 1):
+                item = ctk.CTkFrame(scroll_frame, fg_color="transparent", height=28)
+                item.pack(fill="x", pady=1)
+                ctk.CTkLabel(item, text=f"{idx:3d}.  {app_name}", font=ctk.CTkFont(size=12), anchor="w").pack(side="left", padx=5)
+
+            ctk.CTkButton(dlg, text="关闭", width=100, height=32, fg_color=("#0078D4", "#005A9E"), command=dlg.destroy).pack(pady=10)
+
+            # 同时保存到文件
+            try:
+                list_file = os.path.join(os.environ.get('APPDATA', '.'), "Win11Launcher", "scanned_apps.txt")
+                with open(list_file, 'w', encoding='utf-8') as f:
+                    f.write(f"开始菜单已扫描应用列表（共 {len(apps)} 个）\n")
+                    f.write("=" * 50 + "\n\n")
+                    for idx, app_name in enumerate(apps, 1):
+                        f.write(f"{idx:3d}. {app_name}\n")
+                logger.debug(f"应用列表已保存到: {list_file}")
+            except Exception as e:
+                logger.debug(f"保存应用列表失败: {e}")
+        except Exception as e:
+            logger.debug(f"显示已扫描应用失败: {e}")
 
     def _get_folders(self, category=None):
         """获取指定分类的文件夹列表"""
