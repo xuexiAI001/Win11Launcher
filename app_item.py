@@ -205,10 +205,26 @@ class AppGridItem(ctk.CTkFrame):
             hover_color = "#E5E5E5"
             separator_color = "#E1E1E1"
 
+        root = self.winfo_toplevel()
+
+        # 关闭其他已打开的菜单
+        if hasattr(root, '_global_context_menus'):
+            for menu_win in root._global_context_menus[:]:
+                try:
+                    if menu_win.winfo_exists():
+                        menu_win.destroy()
+                except Exception:
+                    pass
+            root._global_context_menus.clear()
+
         menu_window = ctk.CTkToplevel(self)
         menu_window.overrideredirect(True)
         menu_window.attributes("-topmost", True)
         menu_window.attributes("-alpha", 0.95)
+
+        if not hasattr(root, '_global_context_menus'):
+            root._global_context_menus = []
+        root._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
         menu_frame.pack(fill="both", expand=True, padx=3, pady=3)
@@ -238,12 +254,45 @@ class AppGridItem(ctk.CTkFrame):
 
         width = 120
         height = 120
+
+        # 屏幕边界检测
+        screen_w = menu_window.winfo_screenwidth()
+        screen_h = menu_window.winfo_screenheight()
+        if x + width > screen_w:
+            x = screen_w - width - 5
+        if y + height > screen_h:
+            y = y - height - 10
+
         menu_window.geometry(f"{width}x{height}+{x}+{y}")
 
         def on_esc(event):
             if menu_window.winfo_exists():
                 menu_window.destroy()
-        menu_window.bind("<Escape>", on_esc)
+
+        def on_click_outside(event):
+            if menu_window.winfo_exists():
+                mx, my = event.x_root, event.y_root
+                wx, wy = menu_window.winfo_rootx(), menu_window.winfo_rooty()
+                ww, wh = menu_window.winfo_width(), menu_window.winfo_height()
+                if not (wx <= mx < wx + ww and wy <= my < wy + wh):
+                    menu_window.destroy()
+
+        def on_destroy():
+            try:
+                root.unbind("<Escape>", on_esc)
+            except Exception:
+                pass
+            try:
+                root.unbind("<Button-1>", on_click_outside)
+            except Exception:
+                pass
+            if hasattr(root, '_global_context_menus') and menu_window in root._global_context_menus:
+                root._global_context_menus.remove(menu_window)
+
+        root.bind("<Escape>", on_esc, add=True)
+        root.bind("<Button-1>", on_click_outside, add=True)
+        menu_window.protocol("WM_DELETE_WINDOW", on_destroy)
+        menu_window.bind("<Destroy>", lambda e: on_destroy())
 
     def _rename_folder(self):
         """重命名文件夹"""
@@ -370,6 +419,7 @@ class AppGridItem(ctk.CTkFrame):
                     except Exception:
                         pass
                 root._global_context_menus.clear()
+            # 清理分类子菜单
             if hasattr(root, '_current_submenu') and root._current_submenu:
                 try:
                     if root._current_submenu.winfo_exists():
@@ -377,7 +427,16 @@ class AppGridItem(ctk.CTkFrame):
                 except Exception:
                     pass
                 root._current_submenu = None
-            for attr in ['_open_submenu_timer', '_close_submenu_timer', '_hover_timer']:
+            # 清理文件夹子菜单
+            if hasattr(root, '_current_folder_submenu') and root._current_folder_submenu:
+                try:
+                    if root._current_folder_submenu.winfo_exists():
+                        root._current_folder_submenu.destroy()
+                except Exception:
+                    pass
+                root._current_folder_submenu = None
+            for attr in ['_open_submenu_timer', '_close_submenu_timer', '_hover_timer',
+                         '_open_folder_timer', '_close_folder_timer']:
                 if hasattr(root, attr):
                     timer = getattr(root, attr)
                     if timer:
@@ -528,9 +587,16 @@ class AppGridItem(ctk.CTkFrame):
 
         def close_folder_submenu():
             nonlocal folder_submenu
+            if hasattr(root, '_open_folder_timer') and root._open_folder_timer:
+                root.after_cancel(root._open_folder_timer)
+                root._open_folder_timer = None
+            if hasattr(root, '_close_folder_timer') and root._close_folder_timer:
+                root.after_cancel(root._close_folder_timer)
+                root._close_folder_timer = None
             if folder_submenu and folder_submenu.winfo_exists():
                 folder_submenu.destroy()
             folder_submenu = None
+            root._current_folder_submenu = None
 
         def create_folder_submenu():
             nonlocal folder_submenu
@@ -539,6 +605,7 @@ class AppGridItem(ctk.CTkFrame):
             folder_submenu = ctk.CTkToplevel(self)
             folder_submenu.overrideredirect(True)
             folder_submenu.attributes("-topmost", True)
+            folder_submenu.attributes("-alpha", 0.95)
 
             folders = self.parent_window._get_folders() if self.parent_window else []
             submenu_height = (len(folders) + 2) * 28 + 8
@@ -573,12 +640,41 @@ class AppGridItem(ctk.CTkFrame):
                 anchor="w", height=28, font=ctk.CTkFont(size=13)
             ).pack(fill="x", padx=3)
 
+            root._current_folder_submenu = folder_submenu
+
+            # 文件夹子菜单鼠标事件
+            def on_fsub_enter(event):
+                if hasattr(root, '_close_folder_timer') and root._close_folder_timer:
+                    root.after_cancel(root._close_folder_timer)
+                    root._close_folder_timer = None
+
+            def on_fsub_leave(event):
+                if hasattr(root, '_open_folder_timer') and root._open_folder_timer:
+                    root.after_cancel(root._open_folder_timer)
+                    root._open_folder_timer = None
+                if hasattr(root, '_close_folder_timer') and root._close_folder_timer:
+                    root.after_cancel(root._close_folder_timer)
+                root._close_folder_timer = root.after(120, close_folder_submenu)
+
+            folder_submenu.bind("<Enter>", on_fsub_enter)
+            folder_submenu.bind("<Leave>", on_fsub_leave)
+
         def on_folder_btn_enter(event):
             close_submenu()  # 关闭分类子菜单
-            root.after(120, create_folder_submenu)
+            if hasattr(root, '_close_folder_timer') and root._close_folder_timer:
+                root.after_cancel(root._close_folder_timer)
+                root._close_folder_timer = None
+            if hasattr(root, '_open_folder_timer') and root._open_folder_timer:
+                root.after_cancel(root._open_folder_timer)
+            root._open_folder_timer = root.after(120, create_folder_submenu)
 
         def on_folder_btn_leave(event):
-            root.after(120, close_folder_submenu)
+            if hasattr(root, '_open_folder_timer') and root._open_folder_timer:
+                root.after_cancel(root._open_folder_timer)
+                root._open_folder_timer = None
+            if hasattr(root, '_close_folder_timer') and root._close_folder_timer:
+                root.after_cancel(root._close_folder_timer)
+            root._close_folder_timer = root.after(120, close_folder_submenu)
 
         folder_btn = ctk.CTkButton(
             menu_frame,
@@ -617,6 +713,7 @@ class AppGridItem(ctk.CTkFrame):
 
         def on_esc(event):
             close_submenu()
+            close_folder_submenu()
             if menu_window.winfo_exists():
                 menu_window.destroy()
 
@@ -635,16 +732,30 @@ class AppGridItem(ctk.CTkFrame):
                     sw, sh = submenu.winfo_width(), submenu.winfo_height()
                     in_submenu = sx <= mx < sx + sw and sy <= my < sy + sh
 
-                if not in_menu and not in_submenu:
+                in_folder_submenu = False
+                if folder_submenu and folder_submenu.winfo_exists():
+                    fx, fy = folder_submenu.winfo_rootx(), folder_submenu.winfo_rooty()
+                    fw, fh = folder_submenu.winfo_width(), folder_submenu.winfo_height()
+                    in_folder_submenu = fx <= mx < fx + fw and fy <= my < fy + fh
+
+                if not in_menu and not in_submenu and not in_folder_submenu:
                     close_submenu()
+                    close_folder_submenu()
                     menu_window.destroy()
 
         root.bind("<Button-1>", on_click_outside, add=True)
 
         def on_destroy():
             close_submenu()
-            root.unbind("<Escape>", on_esc)
-            root.unbind("<Button-1>", on_click_outside)
+            close_folder_submenu()
+            try:
+                root.unbind("<Escape>", on_esc)
+            except Exception:
+                pass
+            try:
+                root.unbind("<Button-1>", on_click_outside)
+            except Exception:
+                pass
             if hasattr(root, '_global_context_menus') and menu_window in root._global_context_menus:
                 root._global_context_menus.remove(menu_window)
 
