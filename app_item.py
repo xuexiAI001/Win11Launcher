@@ -48,7 +48,7 @@ def _enable_menu_shadow(menu_win):
 class AppGridItem(ctk.CTkFrame):
     """应用网格项"""
 
-    def __init__(self, parent, app_data: dict, parent_window=None, lazy_load=True):
+    def __init__(self, parent, app_data: dict, parent_window=None, lazy_load=True, in_folder=False):
         super().__init__(
             parent,
             width=100,
@@ -61,6 +61,7 @@ class AppGridItem(ctk.CTkFrame):
         self.parent_window = parent_window
         self.icon_loaded = False
         self.is_folder = app_data.get("type") == "folder"
+        self.in_folder = in_folder
         self._drag_start = None  # 拖拽起始位置
         self._is_dragging = False
 
@@ -190,6 +191,17 @@ class AppGridItem(ctk.CTkFrame):
             logger.debug(f"打开文件夹窗口: {folder_key}")
         except Exception as e:
             logger.debug(f"打开文件夹失败: {e}")
+
+    def _remove_from_current_folder(self):
+        """从当前文件夹移出应用（仅在文件夹窗口中有效）"""
+        try:
+            if not self.in_folder or not self.parent_window:
+                return
+            # 通知父窗口（文件夹窗口）处理移出
+            if hasattr(self.parent_window, '_remove_app_from_folder'):
+                self.parent_window._remove_app_from_folder(self.app_data)
+        except Exception as e:
+            logger.debug(f"移出文件夹失败: {e}")
 
     def _create_and_move_to_folder(self):
         """新建文件夹并将当前应用移入"""
@@ -760,6 +772,10 @@ class AppGridItem(ctk.CTkFrame):
         folder_btn.bind("<Enter>", on_folder_btn_enter)
         folder_btn.bind("<Leave>", on_folder_btn_leave)
 
+
+        # 如果在文件夹内，添加"移出文件夹"选项
+        if self.in_folder:
+            add_menu_item("移出文件夹", self._remove_from_current_folder, icon="←")
         def set_folder_arrow(arrow):
             folder_btn.configure(text=f"  →  移动到文件夹        {arrow}")
 

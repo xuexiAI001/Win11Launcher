@@ -158,49 +158,17 @@ class FolderWindow(ctk.CTkToplevel):
                 self.scroll_frame,
                 app_data=app_data,
                 parent_window=self.parent_window,
-                lazy_load=True
+                lazy_load=True,
+                in_folder=True
             )
             item.grid(row=row, column=col, padx=8, pady=8)
 
             # 给应用卡片额外加一个"移出文件夹"的右键选项
-            self._add_remove_from_folder_menu(item, app_data)
 
             col += 1
             if col >= 4:
                 col = 0
                 row += 1
-
-    def _add_remove_from_folder_menu(self, item, app_data):
-        """给文件夹内的应用添加右键菜单（移出文件夹、打开文件位置）"""
-        import tkinter as tk
-
-        def show_folder_item_menu(event):
-            try:
-                # 关闭可能存在的旧菜单
-                if hasattr(self, '_folder_item_menu') and self._folder_item_menu:
-                    try:
-                        self._folder_item_menu.destroy()
-                    except Exception:
-                        pass
-
-                menu = tk.Menu(self, tearoff=0)
-                self._folder_item_menu = menu
-
-                menu.add_command(label="移出文件夹", command=lambda: self._remove_app_from_folder(app_data))
-                menu.add_separator()
-                menu.add_command(label="打开文件位置", command=lambda: self._open_file_location(app_data))
-
-                # 显示菜单
-                menu.tk_popup(event.x_root, event.y_root)
-            except Exception as e:
-                logger.debug(f"显示文件夹项菜单失败: {e}")
-
-        # 绑定右键
-        item.bind("<Button-3>", show_folder_item_menu)
-        item.icon_label.bind("<Button-3>", show_folder_item_menu)
-        # 中键也可以移出
-        item.bind("<Button-2>", lambda e: self._remove_app_from_folder(app_data))
-        item.icon_label.bind("<Button-2>", lambda e: self._remove_app_from_folder(app_data))
 
     def _open_file_location(self, app_data):
         """打开应用文件所在位置"""
