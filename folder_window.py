@@ -52,8 +52,8 @@ class FolderWindow(ctk.CTkToplevel):
         self.update_idletasks()
         if self._anchor_x is not None and self._anchor_y is not None:
             # 窗口左上角在图标中心的左下方，从图标位置展开
-            self._target_x = self._anchor_x
-            self._target_y = self._anchor_y - 15
+            self._target_x = self._anchor_x - 20
+            self._target_y = self._anchor_y
             # 屏幕边界检测
             if self._target_x < 10:
                 self._target_x = 10
