@@ -2394,7 +2394,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._global_context_menus.append(menu_window)
 
         menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8,
-                                  border_width=1, border_color=("#E0E0E0", "#3C3C3C"))
+                                  border_width=1, border_color=("#D5D5D5", "#404040"))
         menu_frame.pack(fill="both", expand=True, padx=0, pady=4)
 
         def do_create():
