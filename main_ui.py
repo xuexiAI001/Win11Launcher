@@ -2016,6 +2016,10 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             fg_color="transparent"
         )
         self.grid_frame.pack(fill="both", expand=True)
+        # 空白处右键菜单：新建文件夹
+        self.grid_frame.bind("<Button-3>", self._show_grid_context_menu)
+        scroll_frame.bind("<Button-3>", self._show_grid_context_menu)
+
 
         # 创建拖放区域（初始显示）
         self.drop_zone = DropZone(self.grid_frame, self._handle_dropped_files)
@@ -2199,6 +2203,56 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._refresh_grid(force=True)
         logger.debug(f"创建文件夹: {name}")
         return folder
+
+
+    def _show_grid_context_menu(self, event):
+        """空白处右键菜单：新建文件夹"""
+        # 只在点击空白区域时触发（不是点击应用卡片）
+        widget = event.widget
+        if widget != self.grid_frame and not str(widget).startswith(str(self.grid_frame) + '.!ctkscrollableframe'):
+            # 检查是否是应用卡片
+            parent = widget
+            while parent:
+                if hasattr(parent, 'app_data'):
+                    return  # 点击的是应用卡片，不显示此菜单
+                parent = getattr(parent, '_parent', None) or getattr(parent, 'master', None)
+                if parent is None or parent == self.grid_frame:
+                    break
+
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label="新建文件夹", command=self._create_folder_with_dialog)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _create_folder_with_dialog(self):
+        """对话框创建文件夹"""
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("新建文件夹")
+        dialog.geometry("300x150")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 300) // 2
+        y = (dialog.winfo_screenheight() - 150) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        ctk.CTkLabel(dialog, text="文件夹名称:", font=ctk.CTkFont(size=14)).pack(pady=(20, 10))
+        entry = ctk.CTkEntry(dialog, width=200)
+        entry.insert(0, f"文件夹{len(self._get_folders()) + 1}")
+        entry.pack(pady=10)
+        entry.focus_set()
+
+        def confirm():
+            name = entry.get().strip()
+            if name:
+                self._create_folder(name)
+            dialog.destroy()
+
+        entry.bind("<Return>", lambda e: confirm())
+        ctk.CTkButton(dialog, text="确定", width=80, command=confirm).pack(pady=10)
 
     def _move_app_to_folder(self, app_data, folder_name):
         """将应用移动到指定文件夹"""

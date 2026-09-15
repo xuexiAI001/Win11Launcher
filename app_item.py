@@ -30,12 +30,21 @@ class AppGridItem(ctk.CTkFrame):
         self.parent_window = parent_window
         self.icon_loaded = False
         self.is_folder = app_data.get("type") == "folder"
+        self._drag_start = None  # 拖拽起始位置
+        self._is_dragging = False
 
         self.pack_propagate(False)
         self._setup_ui(lazy_load=lazy_load)
 
         self.bind("<Button-1>", self._on_click)
         self.icon_label.bind("<Button-1>", self._on_click)
+        # 拖拽支持
+        self.bind("<ButtonPress-1>", self._on_drag_start)
+        self.bind("<B1-Motion>", self._on_drag_motion)
+        self.bind("<ButtonRelease-1>", self._on_drag_release)
+        self.icon_label.bind("<ButtonPress-1>", self._on_drag_start)
+        self.icon_label.bind("<B1-Motion>", self._on_drag_motion)
+        self.icon_label.bind("<ButtonRelease-1>", self._on_drag_release)
         self.bind("<Button-3>", self._on_right_click)
         self.icon_label.bind("<Button-3>", self._on_right_click)
         self.bind("<Enter>", self._on_enter)
@@ -62,6 +71,9 @@ class AppGridItem(ctk.CTkFrame):
 
     def _on_click(self, event):
         """鼠标左键点击 - 文件夹打开窗口，应用启动"""
+        if self._is_dragging:
+            self._is_dragging = False
+            return
         if self.is_folder:
             self._open_folder()
             return
@@ -73,6 +85,47 @@ class AppGridItem(ctk.CTkFrame):
                 os.startfile(app_path)
             except Exception as e:
                 logger.debug(f"启动失败: {e}")
+
+    def _on_drag_start(self, event):
+        """记录拖拽起始位置"""
+        self._drag_start = (event.x_root, event.y_root)
+        self._is_dragging = False
+
+    def _on_drag_motion(self, event):
+        """拖拽移动：超过阈值进入拖拽模式"""
+        if self._drag_start is None or self.is_folder:
+            return
+        dx = abs(event.x_root - self._drag_start[0])
+        dy = abs(event.y_root - self._drag_start[1])
+        if dx > 8 or dy > 8:
+            self._is_dragging = True
+            # 拖拽视觉反馈
+            self.configure(fg_color=("#0078D4", "#005A9E"))
+
+    def _on_drag_release(self, event):
+        """拖拽释放：检测是否在文件夹上"""
+        if not self._is_dragging:
+            self._drag_start = None
+            return
+
+        self._is_dragging = False
+        self._drag_start = None
+        self.configure(fg_color=("#FFFFFF", "#2D2D2D"))
+
+        # 查找释放位置下的文件夹卡片
+        try:
+            widget = self.winfo_containing(event.x_root, event.y_root)
+            target = widget
+            while target:
+                if hasattr(target, 'is_folder') and getattr(target, 'is_folder', False):
+                    # 移动到文件夹
+                    folder_name = target.app_data.get("name")
+                    if folder_name and self.parent_window:
+                        self.parent_window._move_app_to_folder(self.app_data, folder_name)
+                    return
+                target = getattr(target, 'master', None)
+        except Exception as e:
+            logger.debug(f"拖拽释放检测失败: {e}")
 
     def _open_folder(self):
         """打开文件夹窗口"""
