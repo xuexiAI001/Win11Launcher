@@ -9,6 +9,7 @@ import customtkinter as ctk
 from tkinter import filedialog
 from PIL import ImageTk
 from icon_extractor import get_app_icon
+from folder_window import FolderWindow
 
 logger = logging.getLogger("Win11Launcher")
 
@@ -28,6 +29,7 @@ class AppGridItem(ctk.CTkFrame):
         self.hover = False
         self.parent_window = parent_window
         self.icon_loaded = False
+        self.is_folder = app_data.get("type") == "folder"
 
         self.pack_propagate(False)
         self._setup_ui(lazy_load=lazy_load)
@@ -59,7 +61,10 @@ class AppGridItem(ctk.CTkFrame):
         )
 
     def _on_click(self, event):
-        """鼠标左键点击启动应用"""
+        """鼠标左键点击 - 文件夹打开窗口，应用启动"""
+        if self.is_folder:
+            self._open_folder()
+            return
         app_path = self.app_data.get("path", "")
         if app_path and os.path.exists(app_path):
             try:
@@ -68,6 +73,178 @@ class AppGridItem(ctk.CTkFrame):
                 os.startfile(app_path)
             except Exception as e:
                 logger.debug(f"启动失败: {e}")
+
+    def _open_folder(self):
+        """打开文件夹窗口"""
+        try:
+            folder_key = f"{self.parent_window.current_category}_{self.app_data.get('name')}"
+            FolderWindow(
+                self.parent_window,
+                self.app_data,
+                folder_key,
+                on_changed=lambda: self.parent_window._refresh_grid(force=True)
+            )
+        except Exception as e:
+            logger.debug(f"打开文件夹失败: {e}")
+
+    def _create_and_move_to_folder(self):
+        """新建文件夹并将当前应用移入"""
+        if not self.parent_window:
+            return
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("新建文件夹")
+        dialog.geometry("300x150")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 300) // 2
+        y = (dialog.winfo_screenheight() - 150) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        ctk.CTkLabel(dialog, text="文件夹名称:", font=ctk.CTkFont(size=14)).pack(pady=(20, 10))
+        entry = ctk.CTkEntry(dialog, width=200)
+        entry.insert(0, f"文件夹{len(self.parent_window._get_folders()) + 1}")
+        entry.pack(pady=10)
+
+        def confirm():
+            name = entry.get().strip()
+            if name:
+                self.parent_window._create_folder(name)
+                self.parent_window._move_app_to_folder(self.app_data, name)
+            dialog.destroy()
+
+        ctk.CTkButton(dialog, text="确定", width=80, command=confirm).pack(pady=10)
+
+
+
+    def _show_folder_menu(self, x, y):
+        """文件夹右键菜单"""
+        appearance_mode = ctk.get_appearance_mode()
+        if appearance_mode == "Dark":
+            bg_color = "#2B2B2B"
+            fg_color = "#FFFFFF"
+            hover_color = "#404040"
+            separator_color = "#3C3C3C"
+        else:
+            bg_color = "#F3F3F3"
+            fg_color = "#000000"
+            hover_color = "#E5E5E5"
+            separator_color = "#E1E1E1"
+
+        menu_window = ctk.CTkToplevel(self)
+        menu_window.overrideredirect(True)
+        menu_window.attributes("-topmost", True)
+        menu_window.attributes("-alpha", 0.95)
+
+        menu_frame = ctk.CTkFrame(menu_window, fg_color=bg_color, corner_radius=8)
+        menu_frame.pack(fill="both", expand=True, padx=3, pady=3)
+
+        def add_item(label, command):
+            btn = ctk.CTkButton(
+                menu_frame,
+                text=label,
+                fg_color="transparent",
+                hover_color=hover_color,
+                text_color=fg_color,
+                command=lambda: (command(), menu_window.destroy()),
+                anchor="w",
+                height=28,
+                font=ctk.CTkFont(size=13)
+            )
+            btn.pack(fill="x", padx=3)
+
+        def add_sep():
+            sep = ctk.CTkFrame(menu_frame, height=2, fg_color=separator_color)
+            sep.pack(fill="x", padx=10, pady=4)
+
+        add_item("打开", self._open_folder)
+        add_item("重命名", self._rename_folder)
+        add_sep()
+        add_item("删除文件夹", self._delete_folder)
+
+        width = 120
+        height = 120
+        menu_window.geometry(f"{width}x{height}+{x}+{y}")
+
+        def on_esc(event):
+            if menu_window.winfo_exists():
+                menu_window.destroy()
+        menu_window.bind("<Escape>", on_esc)
+
+    def _rename_folder(self):
+        """重命名文件夹"""
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("重命名文件夹")
+        dialog.geometry("300x150")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 300) // 2
+        y = (dialog.winfo_screenheight() - 150) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        ctk.CTkLabel(dialog, text="输入新名称:", font=ctk.CTkFont(size=14)).pack(pady=(20, 10))
+        entry = ctk.CTkEntry(dialog, width=200)
+        entry.insert(0, self.app_data.get("name", ""))
+        entry.pack(pady=10)
+
+        def save():
+            new_name = entry.get().strip()
+            if new_name:
+                self.app_data["name"] = new_name
+                self.parent_window._save_config()
+                self.parent_window._refresh_grid(force=True)
+            dialog.destroy()
+
+        ctk.CTkButton(dialog, text="确定", width=80, command=save).pack(pady=10)
+
+    def _delete_folder(self):
+        """删除文件夹（应用移回主分类）"""
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("确认删除")
+        dialog.geometry("350x180")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 350) // 2
+        y = (dialog.winfo_screenheight() - 180) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        name = self.app_data.get("name", "此文件夹")
+        count = len(self.app_data.get("apps", []))
+        ctk.CTkLabel(
+            dialog,
+            text=f'删除文件夹 "{name}"？\n（{count}个应用将移回主分类）',
+            font=ctk.CTkFont(size=14),
+            justify="center"
+        ).pack(pady=(30, 20))
+
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(pady=10)
+
+        def confirm():
+            current_cat = self.parent_window.current_category
+            # 文件夹内应用移回主分类
+            for app in self.app_data.get("apps", []):
+                self.parent_window.app_config[current_cat].append(app)
+            # 移除文件夹
+            apps_list = self.parent_window.app_config[current_cat]
+            target_name = self.app_data.get("name")
+            for i, item in enumerate(apps_list):
+                if item.get("type") == "folder" and item.get("name") == target_name:
+                    del apps_list[i]
+                    break
+            self.parent_window._save_config()
+            self.parent_window._refresh_grid(force=True)
+            dialog.destroy()
+
+        ctk.CTkButton(btn_frame, text="删除", width=100, fg_color="#e74c3c",
+                       hover_color="#c0392b", command=confirm).pack(side="left", padx=10)
+        ctk.CTkButton(btn_frame, text="取消", width=100, command=dialog.destroy).pack(side="left", padx=10)
+
 
     def _click_animation(self):
         """点击动画 - 闪烁效果"""
@@ -91,6 +268,12 @@ class AppGridItem(ctk.CTkFrame):
     def _show_context_menu(self, x, y):
         """显示右键菜单 - Win11 风格"""
         appearance_mode = ctk.get_appearance_mode()
+        # 文件夹显示专用菜单
+        if self.is_folder:
+            self._show_folder_menu(x, y)
+            return
+
+
 
         if appearance_mode == "Dark":
             bg_color = "#2B2B2B"
@@ -267,6 +450,77 @@ class AppGridItem(ctk.CTkFrame):
         move_btn.bind("<Enter>", on_move_btn_enter)
         move_btn.bind("<Leave>", on_move_btn_leave)
 
+        # 移动到文件夹 - 二级菜单
+        folder_submenu = None
+
+        def close_folder_submenu():
+            nonlocal folder_submenu
+            if folder_submenu and folder_submenu.winfo_exists():
+                folder_submenu.destroy()
+            folder_submenu = None
+
+        def create_folder_submenu():
+            nonlocal folder_submenu
+            if folder_submenu and folder_submenu.winfo_exists():
+                return
+            folder_submenu = ctk.CTkToplevel(self)
+            folder_submenu.overrideredirect(True)
+            folder_submenu.attributes("-topmost", True)
+
+            folders = self.parent_window._get_folders() if self.parent_window else []
+            submenu_height = (len(folders) + 2) * 28 + 8
+            submenu_x = x + 165
+            submenu_y = y + 80
+            screen_h = folder_submenu.winfo_screenheight()
+            if submenu_y + submenu_height > screen_h:
+                submenu_y = submenu_y - submenu_height - 80
+            folder_submenu.geometry(f"120x{submenu_height}+{submenu_x}+{submenu_y}")
+
+            sf_frame = ctk.CTkFrame(folder_submenu, fg_color=bg_color, corner_radius=8)
+            sf_frame.pack(fill="both", expand=True, padx=3, pady=3)
+
+            for folder in folders:
+                fname = folder.get("name", "")
+                btn = ctk.CTkButton(
+                    sf_frame, text=fname, fg_color="transparent",
+                    hover_color=hover_color, text_color=fg_color,
+                    command=lambda f=fname: (self.parent_window._move_app_to_folder(self.app_data, f), menu_window.destroy()),
+                    anchor="w", height=28, font=ctk.CTkFont(size=13)
+                )
+                btn.pack(fill="x", padx=3)
+
+            # 分隔线
+            ctk.CTkFrame(sf_frame, height=2, fg_color=separator_color).pack(fill="x", padx=10, pady=4)
+
+            # 新建文件夹
+            ctk.CTkButton(
+                sf_frame, text="新建文件夹...", fg_color="transparent",
+                hover_color=hover_color, text_color=fg_color,
+                command=lambda: (self._create_and_move_to_folder(), menu_window.destroy()),
+                anchor="w", height=28, font=ctk.CTkFont(size=13)
+            ).pack(fill="x", padx=3)
+
+        def on_folder_btn_enter(event):
+            close_submenu()  # 关闭分类子菜单
+            root.after(120, create_folder_submenu)
+
+        def on_folder_btn_leave(event):
+            root.after(120, close_folder_submenu)
+
+        folder_btn = ctk.CTkButton(
+            menu_frame,
+            text="移动到文件夹        ＞",
+            fg_color="transparent",
+            hover_color=hover_color,
+            text_color=fg_color,
+            anchor="w",
+            height=28,
+            font=ctk.CTkFont(size=13)
+        )
+        folder_btn.pack(fill="x", padx=3)
+        folder_btn.bind("<Enter>", on_folder_btn_enter)
+        folder_btn.bind("<Leave>", on_folder_btn_leave)
+
         add_menu_item("", None, is_separator=True)
         add_menu_item("更换图标", self._change_icon)
         add_menu_item("重命名", self._rename_app)
@@ -278,7 +532,7 @@ class AppGridItem(ctk.CTkFrame):
         add_menu_item("属性", self._show_properties)
 
         width = 130
-        height = 295
+        height = 325
 
         screen_height = menu_window.winfo_screenheight()
         window_bottom = self.winfo_toplevel().winfo_y() + self.winfo_toplevel().winfo_height()
@@ -689,6 +943,32 @@ class AppGridItem(ctk.CTkFrame):
 
     def _setup_ui(self, lazy_load=True):
         """设置UI"""
+        if self.is_folder:
+            # 文件夹：显示文件夹图标 + 名称 + 应用数量
+            self.icon_label = ctk.CTkLabel(
+                self,
+                text="\U0001F4C1",  # 📁 文件夹emoji
+                width=48,
+                height=48,
+                fg_color=("#FFB900", "#D29200"),
+                corner_radius=8,
+                font=ctk.CTkFont(size=24)
+            )
+            self.icon_label.pack(pady=(12, 4))
+
+            app_count = len(self.app_data.get("apps", []))
+            name_label = ctk.CTkLabel(
+                self,
+                text=f"{self.app_data.get('name', '文件夹')}\n({app_count})",
+                font=ctk.CTkFont(size=11),
+                text_color=("#1A1A1A", "#E0E0E0"),
+                wraplength=90,
+                justify="center"
+            )
+            name_label.pack(pady=(0, 8))
+            return
+
+        # 普通应用
         initial_text = self.app_data.get("name", "App")[:1].upper()
         self.icon_label = ctk.CTkLabel(
             self,
@@ -712,6 +992,7 @@ class AppGridItem(ctk.CTkFrame):
 
         if lazy_load:
             self._load_icon_async()
+
 
     def _load_icon_async(self):
         """异步加载图标 - 使用线程池"""

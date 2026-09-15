@@ -61,6 +61,7 @@ from app_info import get_app_info
 from drop_zone import DropZone
 from app_item import AppGridItem
 from tray_icon import TrayManager
+from folder_window import FolderWindow
 
 # 尝试导入拖放库
 try:
@@ -2175,6 +2176,55 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             self._show_message(f"有 {invalid_count} 个项目无法识别或添加")
         else:
             self._show_message("未添加新应用（已存在或无效）")
+
+
+    def _get_folders(self, category=None):
+        """获取指定分类的文件夹列表"""
+        if category is None:
+            category = self.current_category
+        apps = self.app_config.get(category, [])
+        return [a for a in apps if a.get("type") == "folder"]
+
+    def _create_folder(self, name=None):
+        """在当前分类创建新文件夹"""
+        if name is None:
+            name = f"新建文件夹{len(self._get_folders()) + 1}"
+        folder = {
+            "type": "folder",
+            "name": name,
+            "apps": []
+        }
+        self.app_config[self.current_category].append(folder)
+        self._save_config()
+        self._refresh_grid(force=True)
+        logger.debug(f"创建文件夹: {name}")
+        return folder
+
+    def _move_app_to_folder(self, app_data, folder_name):
+        """将应用移动到指定文件夹"""
+        category = self.current_category
+        apps = self.app_config.get(category, [])
+
+        # 从主列表移除
+        app_path = app_data.get("path", "")
+        removed = None
+        for i, app in enumerate(apps):
+            if app.get("type") != "folder" and app.get("path", "") == app_path:
+                removed = apps.pop(i)
+                break
+
+        if not removed:
+            return
+
+        # 添加到文件夹
+        for app in apps:
+            if app.get("type") == "folder" and app.get("name") == folder_name:
+                app["apps"].append(removed)
+                break
+
+        self._save_config()
+        self._refresh_grid(force=True)
+        logger.debug(f"应用 {removed.get('name')} 移动到文件夹 {folder_name}")
 
     def _on_add_app(self):
         """通过文件对话框添加应用（智能浏览Program Files目录）"""
