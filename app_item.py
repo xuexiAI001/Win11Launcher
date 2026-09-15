@@ -249,7 +249,6 @@ class AppGridItem(ctk.CTkFrame):
         menu_window = tk.Toplevel(self)
         menu_window.overrideredirect(True)
         menu_window.attributes("-topmost", True)
-        menu_window.attributes("-alpha", 0.95)
         menu_window.config(bg="#000001")
         menu_window.attributes("-transparentcolor", "#000001")
 
@@ -285,7 +284,7 @@ class AppGridItem(ctk.CTkFrame):
         add_item("删除文件夹", self._delete_folder)
 
         width = 130
-        height = 3 * 34 + 11 + 8
+        height = 3 * 34 + 11 + 16
 
         # 屏幕边界检测
         screen_w = menu_window.winfo_screenwidth()
@@ -487,7 +486,6 @@ class AppGridItem(ctk.CTkFrame):
         menu_window.attributes("-topmost", True)
         menu_window.config(bg="#000001")
         menu_window.attributes("-transparentcolor", "#000001")
-        menu_window.attributes("-alpha", 0.95)
 
         if not hasattr(root, '_global_context_menus'):
             root._global_context_menus = []
@@ -522,7 +520,6 @@ class AppGridItem(ctk.CTkFrame):
             submenu.attributes("-topmost", True)
             submenu.config(bg="#000001")
             submenu.attributes("-transparentcolor", "#000001")
-            submenu.attributes("-alpha", 0.95)
 
             submenu_height = len(self.parent_window.categories) * 34 + 8
             submenu_x = x + 155
@@ -614,7 +611,7 @@ class AppGridItem(ctk.CTkFrame):
 
         move_btn = ctk.CTkButton(
             menu_frame,
-            text="    移动分类                ›",
+            text="    移动分类              ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -628,7 +625,7 @@ class AppGridItem(ctk.CTkFrame):
         move_btn.bind("<Leave>", on_move_btn_leave)
 
         def set_move_arrow(arrow):
-            move_btn.configure(text=f"    移动分类                {arrow}")
+            move_btn.configure(text=f"    移动分类              {arrow}")
 
         # 移动到文件夹 - 二级菜单
         folder_submenu = None
@@ -656,7 +653,6 @@ class AppGridItem(ctk.CTkFrame):
             folder_submenu.attributes("-topmost", True)
             folder_submenu.config(bg="#000001")
             folder_submenu.attributes("-transparentcolor", "#000001")
-            folder_submenu.attributes("-alpha", 0.95)
 
             folders = self.parent_window._get_folders() if self.parent_window else []
             submenu_height = (len(folders) + 2) * 34 + 11
@@ -732,7 +728,7 @@ class AppGridItem(ctk.CTkFrame):
 
         folder_btn = ctk.CTkButton(
             menu_frame,
-            text="    移动到文件夹            ›",
+            text="    移动到文件夹          ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -746,7 +742,7 @@ class AppGridItem(ctk.CTkFrame):
         folder_btn.bind("<Leave>", on_folder_btn_leave)
 
         def set_folder_arrow(arrow):
-            folder_btn.configure(text=f"    移动到文件夹            {arrow}")
+            folder_btn.configure(text=f"    移动到文件夹          {arrow}")
 
         add_menu_item("", None, is_separator=True)
         add_menu_item("更换图标", self._change_icon)
@@ -758,15 +754,14 @@ class AppGridItem(ctk.CTkFrame):
         add_menu_item("打开文件位置", self._open_file_location)
         add_menu_item("属性", self._show_properties)
 
-        width = 165
-        # 动态计算高度：11个菜单项(32px+2px pady) + 3个分隔线(1px+10px pady) + 上下边距
-        height = 11 * 34 + 3 * 11 + 12
+        width = 170
+        # 动态计算高度：11个菜单项(32px+2px pady) + 3个分隔线(1px+10px pady) + 上下边距(留足余量)
+        height = 11 * 34 + 3 * 11 + 24
 
         screen_height = menu_window.winfo_screenheight()
-        window_bottom = self.winfo_toplevel().winfo_y() + self.winfo_toplevel().winfo_height()
-
-        if y + height > screen_height or (window_bottom - y < 250):
-            y = y - height - 60
+        # 如果菜单底部超出屏幕，往上翻
+        if y + height > screen_height - 10:
+            y = max(10, y - height - 20)
 
         menu_window.geometry(f"{width}x{height}+{x}+{y}")
         menu_window.update_idletasks()

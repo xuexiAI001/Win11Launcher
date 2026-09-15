@@ -2388,7 +2388,6 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         menu_window.attributes("-topmost", True)
         menu_window.config(bg="#000001")
         menu_window.attributes("-transparentcolor", "#000001")
-        menu_window.attributes("-alpha", 0.95)
 
         if not hasattr(self, '_global_context_menus'):
             self._global_context_menus = []
