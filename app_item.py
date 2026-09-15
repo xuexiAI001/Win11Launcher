@@ -71,6 +71,9 @@ class AppGridItem(ctk.CTkFrame):
         self.bind("<Button-1>", self._on_click)
         self.icon_label.bind("<Button-1>", self._on_click)
         # 拖拽支持
+        # 中键快捷移出文件夹（仅在文件夹内有效）
+        self.bind("<Button-2>", lambda e: self._remove_from_current_folder())
+        self.icon_label.bind("<Button-2>", lambda e: self._remove_from_current_folder())
         self.bind("<ButtonPress-1>", self._on_drag_start)
         self.bind("<B1-Motion>", self._on_drag_motion)
         self.bind("<ButtonRelease-1>", self._on_drag_release)
@@ -195,11 +198,12 @@ class AppGridItem(ctk.CTkFrame):
     def _remove_from_current_folder(self):
         """从当前文件夹移出应用（仅在文件夹窗口中有效）"""
         try:
-            if not self.in_folder or not self.parent_window:
+            if not self.in_folder:
                 return
-            # 通知父窗口（文件夹窗口）处理移出
-            if hasattr(self.parent_window, '_remove_app_from_folder'):
-                self.parent_window._remove_app_from_folder(self.app_data)
+            # folder_window 是文件夹窗口引用
+            folder_win = getattr(self, 'folder_window', None)
+            if folder_win and hasattr(folder_win, '_remove_app_from_folder'):
+                folder_win._remove_app_from_folder(self.app_data)
         except Exception as e:
             logger.debug(f"移出文件夹失败: {e}")
 

@@ -161,6 +161,7 @@ class FolderWindow(ctk.CTkToplevel):
                 lazy_load=True,
                 in_folder=True
             )
+            item.folder_window = self  # 设置文件夹窗口引用
             item.grid(row=row, column=col, padx=8, pady=8)
 
             # 给应用卡片额外加一个"移出文件夹"的右键选项
