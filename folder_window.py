@@ -67,14 +67,21 @@ class FolderWindow(ctk.CTkToplevel):
             self._target_x = (self.winfo_screenwidth() - 500) // 2
             self._target_y = (self.winfo_screenheight() - 400) // 2
 
-        # 初始状态：稍大尺寸，低透明度
+        # 初始状态：先隐藏，设置目标大小完成布局，再缩小开始动画（避免内容空白）
         if self._anchor_x is not None:
+            self.withdraw()  # 隐藏窗口
+            # 先设置目标大小，让内容完成布局
+            self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
+            self.attributes('-alpha', self._target_alpha)
+            self.update_idletasks()  # 强制完成布局
+            # 再缩小到起始大小
             start_w = 120
             start_h = 100
             start_x = self._anchor_x - start_w // 2
             start_y = self._anchor_y - start_h // 2
             self.geometry(f"{start_w}x{start_h}+{start_x}+{start_y}")
             self.attributes('-alpha', 0.3)
+            self.deiconify()  # 显示窗口
         else:
             self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
             self.attributes('-alpha', self._target_alpha)
@@ -84,19 +91,13 @@ class FolderWindow(ctk.CTkToplevel):
         title_frame = ctk.CTkFrame(self, fg_color="transparent", height=40)
         title_frame.pack(fill="x", padx=10, pady=(10, 5))
 
-        ctk.CTkLabel(
-            title_frame,
-            text=folder_data.get("name", "文件夹"),
-            font=ctk.CTkFont(size=16, weight="bold")
-        ).pack(side="left", padx=10)
-
         app_count = len(folder_data.get("apps", []))
         ctk.CTkLabel(
             title_frame,
-            text=f"({app_count} 个应用)",
-            font=ctk.CTkFont(size=12),
-            text_color=("#888888", "#666666")
-        ).pack(side="left")
+            text=f"{folder_data.get('name', '文件夹')}  ({app_count} 个应用)",
+            font=ctk.CTkFont(size=15, weight="bold"),
+            anchor="w"
+        ).pack(side="left", padx=10)
 
         # 内容区域（自然填充窗口，随窗口放大逐渐显示内容）
         self._content_frame = ctk.CTkFrame(self, fg_color="transparent")
