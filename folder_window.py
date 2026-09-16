@@ -98,10 +98,9 @@ class FolderWindow(ctk.CTkToplevel):
             text_color=("#888888", "#666666")
         ).pack(side="left")
 
-        # 内容区域（固定大小，避免窗口缩放时内容重排导致卡帧）
-        self._content_frame = ctk.CTkFrame(self, fg_color="transparent", width=480, height=335)
+        # 内容区域（自然填充窗口，随窗口放大逐渐显示内容）
+        self._content_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._content_frame.pack(fill="both", expand=True)
-        self._content_frame.pack_propagate(False)
 
         self.scroll_frame = ctk.CTkScrollableFrame(self._content_frame, fg_color="transparent")
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
