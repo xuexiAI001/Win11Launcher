@@ -67,10 +67,10 @@ class FolderWindow(ctk.CTkToplevel):
             self._target_x = (self.winfo_screenwidth() - 500) // 2
             self._target_y = (self.winfo_screenheight() - 400) // 2
 
-        # 初始状态：图标大小，低透明度
+        # 初始状态：稍大尺寸，低透明度
         if self._anchor_x is not None:
-            start_w = 48
-            start_h = 48
+            start_w = 120
+            start_h = 100
             start_x = self._anchor_x - start_w // 2
             start_y = self._anchor_y - start_h // 2
             self.geometry(f"{start_w}x{start_h}+{start_x}+{start_y}")
@@ -122,19 +122,13 @@ class FolderWindow(ctk.CTkToplevel):
                 return
 
             # 预计算所有帧参数，避免每帧重复计算
-            frames = 22
-            delay = 12  # 每帧12ms，总时长约264ms
+            frames = 18
+            delay = 11  # 每帧11ms，总时长约198ms
 
-            start_w, start_h = 48, 48
+            # 起始尺寸稍大，让内容更早显示，减少被裁剪感
+            start_w, start_h = 120, 100
             start_x = self._anchor_x - start_w // 2
             start_y = self._anchor_y - start_h // 2
-
-            # 动画前冻结内容布局，避免窗口缩放时内容重新计算导致卡帧
-            try:
-                self._content_frame.configure(width=self._target_w - 20, height=self._target_h - 70)
-                self._content_frame.pack_propagate(False)
-            except Exception:
-                pass
 
             # 预计算每一帧的 geometry 和 alpha
             frame_data = []
@@ -198,14 +192,14 @@ class FolderWindow(ctk.CTkToplevel):
                 return
 
             # 预计算所有帧参数
-            frames = 18
-            delay = 11  # 每帧11ms，总时长约198ms
+            frames = 16
+            delay = 11  # 每帧11ms，总时长约176ms
 
             start_w = self._target_w
             start_h = self._target_h
             start_x = self._target_x
             start_y = self._target_y
-            end_w, end_h = 48, 48
+            end_w, end_h = 120, 100
             end_x = self._anchor_x - end_w // 2
             end_y = self._anchor_y - end_h // 2
 
