@@ -67,21 +67,14 @@ class FolderWindow(ctk.CTkToplevel):
             self._target_x = (self.winfo_screenwidth() - 500) // 2
             self._target_y = (self.winfo_screenheight() - 400) // 2
 
-        # 初始状态：先隐藏，设置目标大小完成布局，再缩小开始动画（避免内容空白）
+        # 初始状态：直接设置为起始大小，内容区域固定目标大小提前布局
         if self._anchor_x is not None:
-            self.withdraw()  # 隐藏窗口
-            # 先设置目标大小，让内容完成布局
-            self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
-            self.attributes('-alpha', self._target_alpha)
-            self.update_idletasks()  # 强制完成布局
-            # 再缩小到起始大小
             start_w = 120
             start_h = 100
             start_x = self._anchor_x - start_w // 2
             start_y = self._anchor_y - start_h // 2
             self.geometry(f"{start_w}x{start_h}+{start_x}+{start_y}")
             self.attributes('-alpha', 0.3)
-            self.deiconify()  # 显示窗口
         else:
             self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
             self.attributes('-alpha', self._target_alpha)
@@ -99,15 +92,19 @@ class FolderWindow(ctk.CTkToplevel):
             anchor="w"
         ).pack(side="left", padx=10)
 
-        # 内容区域（自然填充窗口，随窗口放大逐渐显示内容）
-        self._content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        # 内容区域固定目标大小，动画期间不随窗口缩放重排（避免卡顿）
+        self._content_frame = ctk.CTkFrame(self, fg_color="transparent", width=480, height=335)
         self._content_frame.pack(fill="both", expand=True)
+        self._content_frame.pack_propagate(False)
 
         self.scroll_frame = ctk.CTkScrollableFrame(self._content_frame, fg_color="transparent")
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
         self._render_apps()
 
+
+        # 强制完成内容布局（内容区域固定大小，不依赖窗口大小）
+        self.update_idletasks()
         # 关闭时从主窗口字典中移除
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
