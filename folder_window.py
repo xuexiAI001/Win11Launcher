@@ -156,7 +156,7 @@ class FolderWindow(ctk.CTkToplevel):
                     self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                     self.attributes('-alpha', self._target_alpha)
                     # 动画结束后延迟恢复滚动条，避免最后一帧卡顿
-                    self.after(50, self._restore_scrollbar)
+                    self.after(150, self._restore_scrollbar)
                     self.after(100, self._ensure_on_top)
                     return
 
@@ -340,7 +340,7 @@ class FolderWindow(ctk.CTkToplevel):
                 self.scroll_frame,
                 app_data=app_data,
                 parent_window=self.parent_window,
-                lazy_load=True,
+                lazy_load=False,
                 in_folder=True
             )
             item.folder_window = self  # 设置文件夹窗口引用

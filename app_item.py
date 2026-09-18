@@ -1289,7 +1289,29 @@ class AppGridItem(ctk.CTkFrame):
 
         if lazy_load:
             self._load_icon_async()
+        else:
+            self._load_icon_sync()
 
+    def _load_icon_sync(self):
+        """同步加载图标（用于文件夹窗口，动画前图标就绪避免卡帧）"""
+        try:
+            app_path = self.app_data.get("path", "")
+            icon_path = self.app_data.get("icon_path", None)
+            original_path = self.app_data.get("original_path", None)
+            if not app_path:
+                return
+            icon_img = get_app_icon(app_path, icon_path, size=48, original_path=original_path)
+            if icon_img:
+                photo_img = ImageTk.PhotoImage(icon_img)
+                self.icon_label.configure(
+                    text="",
+                    image=photo_img,
+                    fg_color="transparent"
+                )
+                self.icon_label.image = photo_img
+                self.icon_loaded = True
+        except Exception as e:
+            logger.debug(f"同步图标加载失败 {self.app_data.get('name', '')}: {e}")
 
     def _load_icon_async(self):
         """异步加载图标 - 使用线程池"""
