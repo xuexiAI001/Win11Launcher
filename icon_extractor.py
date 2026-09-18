@@ -366,6 +366,14 @@ def get_app_icon(app_path: str, icon_path: str = None, size: int = 48, original_
     高清策略：优先用 SHGetImageList 提取 256x256 原图缓存，
     显示时按 DPI 缩放（方案A+B+C）。
     """
+    # 统一规范化路径：正斜杠转反斜杠，否则 SHGetFileInfoW 无法获取系统图标索引
+    if app_path:
+        app_path = os.path.normpath(app_path)
+    if icon_path:
+        icon_path = os.path.normpath(icon_path)
+    if original_path:
+        original_path = os.path.normpath(original_path)
+
     # DPI 适配目标尺寸（方案B）
     dpi_scale = _get_dpi_scale()
     target_size = max(size, int(round(size * dpi_scale)))
