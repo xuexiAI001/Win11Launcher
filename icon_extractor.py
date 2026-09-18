@@ -127,68 +127,119 @@ def _prepare_icon_for_display(img: Image.Image, target_size: int = 48) -> Image.
 
 
 def _hicon_to_pil(hicon, size: int = 48):
-    """将HICON句柄转换为PIL Image（核心转换函数，统一处理类型）"""
+    """将HICON句柄转换为PIL Image
+
+    使用 DrawIconEx 渲染到内存位图，兼容 32bpp Alpha 图标、PNG压缩图标和 DIB section。
+    旧的 GetIconInfo+SelectObject(hbmColor) 方式对部分 DIB section 会读到全透明像素。
+    """
     try:
         user32 = ctypes.windll.user32
         gdi32 = ctypes.windll.gdi32
 
-        # 设置函数参数类型，避免OverflowError
+        # 先通过 GetIconInfo 获取图标真实尺寸（仅用于尺寸，不依赖 hbmColor）
         user32.GetIconInfo.argtypes = [wintypes.HICON, ctypes.POINTER(ICONINFO)]
         user32.GetIconInfo.restype = wintypes.BOOL
-
         icon_info = ICONINFO()
-        if not user32.GetIconInfo(hicon, ctypes.byref(icon_info)):
-            logger.debug("GetIconInfo失败")
-            return None
+        width = height = size
+        if user32.GetIconInfo(hicon, ctypes.byref(icon_info)):
+            try:
+                gdi32.GetObjectW.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p]
+                gdi32.GetObjectW.restype = ctypes.c_int
+                bmp = BITMAP()
+                # 优先从 hbmMask 读尺寸（mask 总是有效的 DDB），hbmColor 可能是无效 DIB 句柄
+                handle_for_size = icon_info.hbmMask if icon_info.hbmMask else icon_info.hbmColor
+                if handle_for_size and gdi32.GetObjectW(handle_for_size, ctypes.sizeof(bmp), ctypes.byref(bmp)) > 0:
+                    if bmp.bmWidth > 0 and bmp.bmHeight > 0:
+                        width = bmp.bmWidth
+                        height = bmp.bmHeight if bmp.bmHeight > 0 else bmp.bmWidth
+            except Exception:
+                pass
+            # 清理 GetIconInfo 产生的位图
+            try:
+                if icon_info.hbmMask:
+                    gdi32.DeleteObject(icon_info.hbmMask)
+            except Exception:
+                pass
+            try:
+                if icon_info.hbmColor:
+                    gdi32.DeleteObject(icon_info.hbmColor)
+            except Exception:
+                pass
 
-        # 获取位图信息
-        gdi32.GetObjectW.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p]
-        gdi32.GetObjectW.restype = ctypes.c_int
+        if width <= 0 or height <= 0:
+            width = height = size
 
-        bmp = BITMAP()
-        gdi32.GetObjectW(icon_info.hbmColor, ctypes.sizeof(bmp), ctypes.byref(bmp))
+        # 用屏幕 DC 创建兼容内存 DC 和 32bpp 位图
+        hdc_screen = user32.GetDC(0)
+        mem_dc = gdi32.CreateCompatibleDC(hdc_screen)
 
-        width = bmp.bmWidth
-        height = bmp.bmHeight
-
-        if width == 0 or height == 0 or bmp.bmBitsPixel == 0:
-            logger.debug(f"位图信息无效: {width}x{height}, bpp={bmp.bmBitsPixel}")
-            user32.DestroyIcon(hicon)
-            gdi32.DeleteObject(icon_info.hbmMask)
-            gdi32.DeleteObject(icon_info.hbmColor)
-            return None
-
-        # 创建设备上下文
-        hdc = user32.GetDC(0)
-        mem_dc = gdi32.CreateCompatibleDC(hdc)
-        gdi32.SelectObject(mem_dc, icon_info.hbmColor)
-
-        # 准备BITMAPINFOHEADER
+        # 创建 32bpp 兼容位图
         bmi_header = BITMAPINFOHEADER()
         bmi_header.biSize = ctypes.sizeof(BITMAPINFOHEADER)
         bmi_header.biWidth = width
-        bmi_header.biHeight = -height  # 顶部朝下
+        bmi_header.biHeight = -height  # top-down
         bmi_header.biPlanes = 1
         bmi_header.biBitCount = 32
         bmi_header.biCompression = 0  # BI_RGB
-
         bmi = ctypes.create_string_buffer(ctypes.sizeof(BITMAPINFOHEADER) + 256 * 4)
         ctypes.memmove(bmi, ctypes.byref(bmi_header), ctypes.sizeof(bmi_header))
 
-        pixels = ctypes.create_string_buffer(width * height * 4)
+        ppv = ctypes.c_void_p()
+        hbm = gdi32.CreateDIBSection(hdc_screen, bmi, 0, ctypes.byref(ppv), None, 0)
+        if not hbm:
+            logger.debug("CreateDIBSection失败")
+            gdi32.DeleteDC(mem_dc)
+            user32.ReleaseDC(0, hdc_screen)
+            user32.DestroyIcon(hicon)
+            return None
 
+        old_bmp = gdi32.SelectObject(mem_dc, hbm)
+
+        # 用 DrawIconEx 将图标绘制到内存位图（DI_NORMAL = DI_IMAGE|DI_MASK）
+        DI_NORMAL = 0x0003
+        user32.DrawIconEx.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int, wintypes.HICON, ctypes.c_int, ctypes.c_int, wintypes.UINT, wintypes.HBRUSH, wintypes.UINT]
+        user32.DrawIconEx.restype = wintypes.BOOL
+        draw_ok = user32.DrawIconEx(mem_dc, 0, 0, hicon, width, height, 0, None, DI_NORMAL)
+
+        # 从位图读取像素
+        pixels = ctypes.create_string_buffer(width * height * 4)
         gdi32.GetDIBits.argtypes = [wintypes.HDC, wintypes.HBITMAP, wintypes.UINT, wintypes.UINT, ctypes.c_void_p, ctypes.c_void_p, wintypes.UINT]
         gdi32.GetDIBits.restype = ctypes.c_int
-        gdi32.GetDIBits(hdc, icon_info.hbmColor, 0, height, pixels, bmi, 0)
+        got = gdi32.GetDIBits(mem_dc, hbm, 0, height, pixels, bmi, 0)
+
+        # 清理
+        gdi32.SelectObject(mem_dc, old_bmp)
+        gdi32.DeleteObject(hbm)
+        gdi32.DeleteDC(mem_dc)
+        user32.ReleaseDC(0, hdc_screen)
+        user32.DestroyIcon(hicon)
+
+        if got == 0:
+            logger.debug(f"GetDIBits返回0, DrawIconEx={draw_ok}")
+            return None
 
         img = Image.frombuffer('RGBA', (width, height), pixels.raw, 'raw', 'BGRA', 0, 1)
 
-        # 清理
-        user32.ReleaseDC(0, hdc)
-        gdi32.DeleteDC(mem_dc)
-        gdi32.DeleteObject(icon_info.hbmMask)
-        gdi32.DeleteObject(icon_info.hbmColor)
-        user32.DestroyIcon(hicon)
+        # 修复 Alpha 通道：DrawIconEx 绘制到 32bpp DIB 时不写 Alpha，
+        # 若 Alpha 全0但 RGB 有内容，用 RGB 非零像素重建 Alpha
+        try:
+            r, g, b, a = img.split()
+            if a.getextrema()[1] == 0:
+                # 统计 RGB 非零像素
+                has_content = False
+                for band in (r, g, b):
+                    if band.getextrema()[1] > 0:
+                        has_content = True
+                        break
+                if has_content:
+                    # RGB 相加后取阈值生成 Alpha：非黑像素不透明
+                    from PIL import ImageChops
+                    alpha_sum = ImageChops.add(ImageChops.add(r, g), b)
+                    a = alpha_sum.point(lambda x: 255 if x > 0 else 0)
+                    img = Image.merge('RGBA', (r, g, b, a))
+                    logger.debug(f"已重建 Alpha 通道 ({width}x{height})")
+        except Exception as e:
+            logger.debug(f"Alpha 修复跳过: {e}")
 
         return img
     except Exception as e:
