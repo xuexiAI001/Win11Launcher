@@ -1234,6 +1234,36 @@ class AppGridItem(ctk.CTkFrame):
         except Exception:
             pass
 
+    @staticmethod
+    def _fit_font_size(text, max_width=90, max_lines=3, base_size=11, min_size=8):
+        """计算能在max_lines行内放下text的最大字体大小（不小于min_size）"""
+        if not text:
+            return base_size
+        for size in range(base_size, min_size - 1, -1):
+            try:
+                font = ctk.CTkFont(size=size)
+                # 按max_width分行统计行数
+                lines = 1
+                current = ""
+                for ch in text:
+                    if ch == "\n":
+                        lines += 1
+                        current = ""
+                        continue
+                    test = current + ch
+                    if font.measure(test) <= max_width:
+                        current = test
+                    else:
+                        lines += 1
+                        current = ch
+                        if lines > max_lines:
+                            break
+                if lines <= max_lines:
+                    return size
+            except Exception:
+                continue
+        return min_size
+
     def _setup_ui(self, lazy_load=True):
         """设置UI"""
         if self.is_folder:
@@ -1250,10 +1280,12 @@ class AppGridItem(ctk.CTkFrame):
             self.icon_label.pack(pady=(12, 4))
 
             app_count = len(self.app_data.get("apps", []))
+            folder_name_text = self.app_data.get("name", "文件夹")
+            folder_fit_size = self._fit_font_size(folder_name_text, max_width=90, max_lines=2)
             name_label = ctk.CTkLabel(
                 self,
-                text=f"{self.app_data.get('name', '文件夹')}\n({app_count})",
-                font=ctk.CTkFont(size=11),
+                text=f"{folder_name_text}\n({app_count})",
+                font=ctk.CTkFont(size=folder_fit_size),
                 text_color=("#1A1A1A", "#E0E0E0"),
                 wraplength=90,
                 justify="center"
@@ -1278,12 +1310,15 @@ class AppGridItem(ctk.CTkFrame):
         )
         self.icon_label.pack(pady=(12, 4))
 
+        app_name_text = self.app_data.get("name", "App")
+        fit_size = self._fit_font_size(app_name_text, max_width=90, max_lines=3)
         name_label = ctk.CTkLabel(
             self,
-            text=self.app_data.get("name", "App"),
-            font=ctk.CTkFont(size=11),
+            text=app_name_text,
+            font=ctk.CTkFont(size=fit_size),
             text_color=("#1A1A1A", "#E0E0E0"),
-            wraplength=90
+            wraplength=90,
+            justify="center"
         )
         name_label.pack(pady=(0, 8))
 
