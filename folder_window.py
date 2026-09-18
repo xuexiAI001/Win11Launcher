@@ -42,6 +42,8 @@ class FolderWindow(ctk.CTkToplevel):
 
         # 设置亚克力透明效果（与主窗口保持一致）
         self._setup_acrylic_effect()
+        # 设置DWM标题栏颜色（与主窗口一致）
+        self._setup_titlebar_color()
 
         # 关键：设置为父窗口的临时窗口，确保始终在主窗口之上
         self.transient(parent)
@@ -115,6 +117,51 @@ class FolderWindow(ctk.CTkToplevel):
                 logger.debug(f"文件夹窗口亚克力效果失败 result={result}")
         except Exception as e:
             logger.debug(f"文件夹窗口亚克力效果异常: {e}")
+
+    def _setup_titlebar_color(self):
+        """设置DWM标题栏颜色（与主窗口一致）"""
+        try:
+            if sys.platform != "win32":
+                return
+            import ctypes
+            from ctypes import wintypes
+            is_dark = ctk.get_appearance_mode().lower() == "dark"
+            hwnd = self.winfo_id()
+            user32 = ctypes.windll.user32
+            root_hwnd = user32.GetAncestor(hwnd, 2)
+            if root_hwnd:
+                hwnd = root_hwnd
+            dwmapi = ctypes.windll.dwmapi
+            # ImmersiveDarkMode
+            try:
+                dark_val = ctypes.c_int(1 if is_dark else 0)
+                dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(dark_val), ctypes.sizeof(dark_val))
+            except Exception:
+                pass
+            # CaptionColor
+            try:
+                rgb = (31, 31, 31) if is_dark else (243, 243, 243)
+                caption = (rgb[2] << 16) | (rgb[1] << 8) | rgb[0]
+                color_val = ctypes.c_int(caption)
+                dwmapi.DwmSetWindowAttribute(hwnd, 35, ctypes.byref(color_val), ctypes.sizeof(color_val))
+            except Exception:
+                pass
+            # 强制刷新非客户区
+            try:
+                user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x0020 | 0x0002 | 0x0001 | 0x0004)
+                user32.SendMessageW(hwnd, 0x031A, 0, 0)
+            except Exception:
+                pass
+        except Exception as e:
+            logger.debug(f"文件夹窗口标题栏着色失败: {e}")
+
+    def update_theme(self):
+        """主题切换时调用：更新标题栏颜色 + 重新应用亚克力"""
+        try:
+            self._setup_titlebar_color()
+            self._setup_acrylic_effect()
+        except Exception as e:
+            logger.debug(f"文件夹窗口主题更新失败: {e}")
 
     def _on_close(self):
         """窗口关闭：直接销毁"""

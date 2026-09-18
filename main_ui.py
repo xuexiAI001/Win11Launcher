@@ -1469,13 +1469,56 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         
         ctk.set_appearance_mode(new_mode)
         logger.debug(f"ctk.get_appearance_mode() = {ctk.get_appearance_mode()}")
-        
+
+        # 关闭已打开的右键菜单（避免颜色不一致）
+        try:
+            if hasattr(self, '_global_context_menus'):
+                for menu_win in self._global_context_menus[:]:
+                    try:
+                        if menu_win.winfo_exists():
+                            menu_win.destroy()
+                    except Exception:
+                        pass
+                self._global_context_menus.clear()
+            if hasattr(self, '_current_submenu') and self._current_submenu:
+                try:
+                    if self._current_submenu.winfo_exists():
+                        self._current_submenu.destroy()
+                except Exception:
+                    pass
+                self._current_submenu = None
+        except Exception:
+            pass
+
+        # 重新加载当前分类所有文件夹卡片的图标（主题相关）
+        try:
+            items = self.category_items_cache.get(self.current_category, [])
+            for item in items:
+                try:
+                    if getattr(item, 'is_folder', False) and hasattr(item, '_load_folder_icon_async'):
+                        item.after(50, item._load_folder_icon_async)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # 更新已打开的文件夹窗口主题
+        try:
+            for win in list(self._open_folder_windows.values()):
+                try:
+                    if win.winfo_exists() and hasattr(win, 'update_theme'):
+                        win.update_theme()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         # 同步更新窗口背景色
         self._set_window_bg_color()
-        
+
         # 更新标题栏颜色（传递用户选择，用于判断是否跟随系统）
         self._update_titlebar_color_from_ctk(user_choice=choice)
-        
+
         # 强制刷新整个窗口
         self.update()
         self.main_frame.update()
