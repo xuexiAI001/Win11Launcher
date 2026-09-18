@@ -42,8 +42,6 @@ class FolderWindow(ctk.CTkToplevel):
 
         # 设置亚克力透明效果（与主窗口保持一致）
         self._setup_acrylic_effect()
-        # 设置DWM标题栏颜色（与主窗口一致）
-        self._setup_titlebar_color()
 
         # 关键：设置为父窗口的临时窗口，确保始终在主窗口之上
         self.transient(parent)
@@ -85,6 +83,8 @@ class FolderWindow(ctk.CTkToplevel):
         # 普通展开：直接聚焦并置顶
         self.focus_force()
         self.after(50, self._ensure_on_top)
+        # 窗口完全显示后再设置DWM标题栏颜色（太早调用不生效）
+        self.after(120, self._setup_titlebar_color)
     def _setup_acrylic_effect(self):
         """使用Windows DWM API设置亚克力效果（与主窗口保持一致）"""
         try:
