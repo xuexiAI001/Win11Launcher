@@ -167,13 +167,40 @@ def _process_icon(img: Image.Image) -> Image.Image:
 
 
 def _prepare_icon_for_display(img: Image.Image, target_size: int = 48) -> Image.Image:
-    """白色透明化 + 缩放到目标尺寸（用于显示）"""
+    """白色透明化 + 自动裁剪透明边框 + 缩放到目标尺寸（用于显示）
+
+    某些 exe 的 256px 图标内容只占左上角一小块（周围全透明），
+    自动裁剪后再缩放可避免显示为小红点。
+    """
     if img is None:
         return None
     try:
         img = _process_icon(img)
+        # 自动裁剪透明边框（基于 alpha 通道）
+        if img.mode == "RGBA":
+            alpha = img.split()[3]
+            bbox = alpha.getbbox()
+            if bbox:
+                bw = bbox[2] - bbox[0]
+                bh = bbox[3] - bbox[1]
+                # 仅当内容占比小于 90% 时才裁剪，避免对本身有合理边距的图标过度裁剪
+                if bw < img.width * 0.9 or bh < img.height * 0.9:
+                    # 保留 2 像素边距避免贴边
+                    left = max(0, bbox[0] - 2)
+                    upper = max(0, bbox[1] - 2)
+                    right = min(img.width, bbox[2] + 2)
+                    lower = min(img.height, bbox[3] + 2)
+                    img = img.crop((left, upper, right, lower))
+        # 缩放：保持宽高比，居中放置在 target_size 画布上，避免拉伸变形
         if img.width != target_size or img.height != target_size:
-            img = img.resize((target_size, target_size), Image.LANCZOS)
+            scale = min(target_size / img.width, target_size / img.height)
+            new_w = max(1, int(round(img.width * scale)))
+            new_h = max(1, int(round(img.height * scale)))
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+            if new_w != target_size or new_h != target_size:
+                canvas = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+                canvas.paste(img, ((target_size - new_w) // 2, (target_size - new_h) // 2), img)
+                img = canvas
         return img
     except Exception as e:
         logger.debug(f"图标预处理失败: {e}")
