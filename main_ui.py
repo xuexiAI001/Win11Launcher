@@ -3046,8 +3046,6 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
     def _refresh_grid(self, force=False):
         """刷新应用网格 - 使用缓存提升性能"""
-        # print(f"="*60)
-        # print(f"[GRID DEBUG] 开始刷新网格, force={force}")
         
         try:
             grid_width = self.grid_frame.winfo_width()
@@ -3058,12 +3056,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             new_cols = 4
         
         self._current_cols = new_cols
-        # print(f"[GRID DEBUG] 列数: {new_cols}")
         
         # 先隐藏所有分类的项目
-        # print(f"[GRID DEBUG] 隐藏所有分类的项目")
         for cat, items in self.category_items_cache.items():
-            # print(f"[GRID DEBUG]   分类 {cat}: {len(items)} 个项目")
             for item in items:
                 item.grid_remove()
         
@@ -3076,18 +3071,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 child_count += 1
             except:
                 pass
-        # print(f"[GRID DEBUG] 额外清理了 {child_count} 个grid_frame子组件")
         
         # 移除拖放区域（如果存在）
         if hasattr(self, 'drop_zone') and self.drop_zone.winfo_exists():
-            # print(f"[GRID DEBUG] 销毁拖放区域")
             self.drop_zone.destroy()
         apps = self.app_config.get(self.current_category, [])
         cached_items = self.category_items_cache[self.current_category]
-        # print(f"[GRID DEBUG] 当前分类 '{self.current_category}'")
-        # print(f"[GRID DEBUG] 配置中的应用数量: {len(apps)}")
-        # print(f"[GRID DEBUG] 配置中的应用: {[a.get('name') for a in apps]}")
-        # print(f"[GRID DEBUG] 缓存中的项目数量: {len(cached_items)}")
 
         if len(apps) == 0:
             # 如果没有应用，显示拖放区域
@@ -3114,18 +3103,13 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     break
         
         if needs_recreate:
-            # print(f"[DEBUG] Recreating items for '{self.current_category}'")
-            # print(f"[DEBUG] Apps list: {[app.get('name') for app in apps]}")
             
             # 销毁旧的缓存项目
-            # print(f"[DEBUG] Destroying {len(cached_items)} cached items")
             for item in cached_items:
                 item.destroy()
             cached_items.clear()
-            # print(f"[DEBUG] Cache cleared, now has {len(cached_items)} items")
             
             # 创建新的
-            # print(f"[DEBUG] Creating {len(apps)} new items")
             for idx, app in enumerate(apps):
                 item = AppGridItem(
                     self.grid_frame,
@@ -3133,22 +3117,16 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     parent_window=self
                 )
                 cached_items.append(item)
-                # print(f"[DEBUG] Created item {idx}: {app.get('name')}")
             
-            # print(f"[DEBUG] Final cache size: {len(cached_items)}")
         
         # 重新布局和显示当前分类
-        # print(f"[GRID DEBUG] 开始布局项目，共 {len(cached_items)} 个")
         for idx, item in enumerate(cached_items):
             app_name = item.app_data.get('name', '未知')
-            # print(f"[GRID DEBUG]   布局项目 {idx}: {app_name}")
             item.grid(row=row, column=col, padx=8, pady=8)
             col += 1
             if col >= self._current_cols:
                 col = 0
                 row += 1
-        # print(f"[GRID DEBUG] 布局完成")
-        # print(f"="*60)
 
     def _mark_initialized(self):
         """标记初始化完成"""

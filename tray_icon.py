@@ -10,6 +10,28 @@ from PIL import Image, ImageDraw
 logger = logging.getLogger("Win11Launcher")
 
 
+def _load_tray_font(size):
+    """加载托盘图标字体，优先使用 Windows 系统字体"""
+    from PIL import ImageFont
+    font_candidates = [
+        r"C:\Windows\Fonts\segoeui.ttf",      # Win11 默认 Segoe UI
+        r"C:\Windows\Fonts\segoeuib.ttf",     # Segoe UI Bold
+        r"C:\Windows\Fonts\arial.ttf",        # Arial
+        r"C:\Windows\Fonts\arialbd.ttf",      # Arial Bold
+    ]
+    for font_path in font_candidates:
+        try:
+            if os.path.exists(font_path):
+                return ImageFont.truetype(font_path, size)
+        except Exception:
+            continue
+    # 回退到默认字体
+    try:
+        return ImageFont.load_default()
+    except Exception:
+        return None
+
+
 def create_tray_icon_image():
     """生成托盘图标（Win11风格：蓝色圆角背景 + 白色L字母）"""
     size = 64
@@ -24,8 +46,19 @@ def create_tray_icon_image():
         fill=(0, 120, 212, 255)  # Win11 蓝色
     )
 
-    # 白色 L 字母
-    draw.text((20, 12), "L", fill=(255, 255, 255, 255))
+    # 白色 L 字母（使用系统字体，居中显示）
+    font = _load_tray_font(36)
+    text = "L"
+    # 计算文字居中位置
+    try:
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+        text_x = (size - text_w) // 2 - bbox[0]
+        text_y = (size - text_h) // 2 - bbox[1] - 2
+    except Exception:
+        text_x, text_y = 20, 10
+    draw.text((text_x, text_y), text, fill=(255, 255, 255, 255), font=font)
 
     return img
 

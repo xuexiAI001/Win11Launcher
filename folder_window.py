@@ -6,6 +6,7 @@ import os
 import sys
 import logging
 import customtkinter as ctk
+from window_effects import apply_acrylic
 
 logger = logging.getLogger("Win11Launcher")
 
@@ -55,7 +56,6 @@ class FolderWindow(ctk.CTkToplevel):
         self._target_x = (self.winfo_screenwidth() - self._target_w) // 2
         self._target_y = (self.winfo_screenheight() - self._target_h) // 2
         self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
-        self.attributes('-alpha', self._target_alpha)
         self.update_idletasks()
         # 窗口句柄就绪后立即设置DWM标题栏颜色（此时窗口仍隐藏，无闪烁）
         self._setup_titlebar_color()
@@ -89,37 +89,8 @@ class FolderWindow(ctk.CTkToplevel):
         self.focus_force()
         self.after(50, self._ensure_on_top)
     def _setup_acrylic_effect(self):
-        """使用Windows DWM API设置亚克力效果（与主窗口保持一致）"""
-        try:
-            if sys.platform != "win32":
-                return
-            import ctypes
-            from ctypes import wintypes
-
-            hwnd = self.winfo_id()
-            user32 = ctypes.windll.user32
-
-            GetAncestor = user32.GetAncestor
-            GetAncestor.argtypes = [wintypes.HWND, ctypes.c_uint]
-            GetAncestor.restype = wintypes.HWND
-            root_hwnd = GetAncestor(hwnd, 2)
-            if root_hwnd:
-                hwnd = root_hwnd
-
-            DwmSetWindowAttribute = ctypes.windll.dwmapi.DwmSetWindowAttribute
-            DwmSetWindowAttribute.argtypes = [wintypes.HWND, ctypes.c_uint, ctypes.POINTER(ctypes.c_int), ctypes.c_uint]
-            DwmSetWindowAttribute.restype = wintypes.HRESULT
-
-            # DWMWA_SYSTEMBACKDROP_TYPE = 38, 2 = DWMSBT_ACRYLIC (亚克力效果)
-            backdrop_type = ctypes.c_int(2)
-            result = DwmSetWindowAttribute(hwnd, 38, ctypes.byref(backdrop_type), ctypes.sizeof(backdrop_type))
-
-            if result == 0:
-                logger.debug("文件夹窗口亚克力效果设置成功")
-            else:
-                logger.debug(f"文件夹窗口亚克力效果失败 result={result}")
-        except Exception as e:
-            logger.debug(f"文件夹窗口亚克力效果异常: {e}")
+        """使用统一的亚克力效果工具（与主窗口保持一致）"""
+        apply_acrylic(self, parent=self.parent_window, alpha=self._target_alpha)
 
     def _setup_titlebar_color(self):
         """设置DWM标题栏颜色（与主窗口一致）"""
