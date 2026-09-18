@@ -131,6 +131,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             super().__init__()
             self._use_tkdnd = False
 
+        # 用户原始主题选择（用于持久化，区分"跟随系统"和实际解析结果）
+        self._user_theme_choice = "跟随系统"
         # 先检测系统主题并设置
         self._detect_system_theme()
 
@@ -1452,6 +1454,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         """更改主题（带平滑过渡效果）"""
         logger.debug(f"========== 主题切换开始 ==========")
         logger.debug(f"用户选择: {choice}")
+        self._user_theme_choice = choice
         
         # 保存原始透明度
         original_alpha = self.attributes('-alpha')
@@ -1607,6 +1610,13 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                         self.alpha_var.set(alpha_value)
                         self.attributes('-alpha', alpha_value)
                         logger.debug(f"透明度已加载: {alpha_value}")
+                    # 加载主题设置并应用
+                    if "theme" in data:
+                        saved_theme = data["theme"]
+                        self._user_theme_choice = saved_theme
+                        theme_map = {"浅色": "light", "深色": "dark", "跟随系统": "system"}
+                        ctk.set_appearance_mode(theme_map.get(saved_theme, "system"))
+                        logger.debug(f"主题已加载: {saved_theme}")
                     logger.debug(f"配置已从 {CONFIG_FILE} 加载")
             else:
                 logger.debug(f"配置文件 {CONFIG_FILE} 不存在，使用默认配置")
@@ -1620,10 +1630,12 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             # 确保 alpha_var 已初始化
             if not hasattr(self, 'alpha_var'):
                 self.alpha_var = ctk.DoubleVar(value=0.96)
+            # 保存用户原始主题选择（区分"跟随系统"和实际解析结果）
             data = {
                 "app_config": self.app_config,
                 "categories": self.categories,
-                "alpha": self.alpha_var.get()
+                "alpha": self.alpha_var.get(),
+                "theme": getattr(self, '_user_theme_choice', '跟随系统')
             }
             # 先写入临时文件
             tmp_path = CONFIG_FILE + '.tmp'
@@ -1656,19 +1668,15 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._setup_global_hotkey()
         logger.debug(f"保存快捷键: {new_hotkey}")
 
-        # 保存主题
-        theme_map = {"浅色": "light", "深色": "dark", "跟随系统": "system"}
-        ctk.set_appearance_mode(theme_map.get(self.theme_var.get(), "system"))
-        
-        # 同步更新标题栏颜色
-        self._update_titlebar_color_from_ctk()
-
+        # 主题已在选择时通过 _change_theme 即时切换，这里只持久化到配置
         # 保存透明度
         self.attributes('-alpha', self.alpha_var.get())
 
         # 保存开机自启动
         self._set_autostart(self.autostart_var.get())
 
+        # 保存配置到文件（包括主题、透明度等）
+        self._save_config()
         self._show_message("设置已保存")
         dialog.destroy()
 
