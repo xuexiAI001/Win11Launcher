@@ -218,6 +218,8 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         # 窗口关闭时清理线程池
         self._original_destroy = self.destroy
         self.destroy = self._on_destroy
+        # 关键：绑定关闭按钮到自定义处理（最小化到托盘或退出）
+        self.protocol("WM_DELETE_WINDOW", self._on_destroy)
 
     def _on_destroy(self):
         """窗口关闭：默认最小化到托盘，而非退出"""
