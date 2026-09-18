@@ -119,11 +119,18 @@ class FolderWindow(ctk.CTkToplevel):
                 self.after(100, self._ensure_on_top)
                 return
 
-            # 预计算所有帧参数，避免每帧重复计算
-            frames = 18
-            delay = 11  # 每帧11ms，总时长约198ms
+            # 动画前：焦点提前设置，隐藏滚动条避免动画中状态变化触发重排
+            self.focus_force()
+            try:
+                if hasattr(self.scroll_frame, '_scrollbar'):
+                    self.scroll_frame._scrollbar.pack_forget()
+            except Exception:
+                pass
 
-            # 起始尺寸稍大，让内容更早显示，减少被裁剪感
+            # 预计算所有帧参数
+            frames = 16
+            delay = 10  # 每帧10ms，总时长约160ms
+
             start_w, start_h = 120, 100
             start_x = self._anchor_x - start_w // 2
             start_y = self._anchor_y - start_h // 2
@@ -132,8 +139,8 @@ class FolderWindow(ctk.CTkToplevel):
             frame_data = []
             for i in range(frames):
                 t = (i + 1) / frames
-                # ease-out-quart：开始快，结尾平滑减速，比cubic更丝滑
-                ease = 1 - (1 - t) ** 4
+                # ease-out-cubic：减速更均匀，末尾不拖沓
+                ease = 1 - (1 - t) ** 3
 
                 w = int(start_w + (self._target_w - start_w) * ease)
                 h = int(start_h + (self._target_h - start_h) * ease)
@@ -148,7 +155,8 @@ class FolderWindow(ctk.CTkToplevel):
                 if idx >= frames:
                     self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                     self.attributes('-alpha', self._target_alpha)
-                    self.focus_force()
+                    # 动画结束后延迟恢复滚动条，避免最后一帧卡顿
+                    self.after(50, self._restore_scrollbar)
                     self.after(100, self._ensure_on_top)
                     return
 
@@ -163,15 +171,17 @@ class FolderWindow(ctk.CTkToplevel):
             try:
                 self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
                 self.attributes('-alpha', self._target_alpha)
+                self._restore_scrollbar()
             except Exception:
                 pass
 
-    def _fade_in_content(self):
-        """内容淡入动画"""
+    def _restore_scrollbar(self):
+        """恢复滚动条显示"""
         try:
-            self._content_frame.attributes('-alpha', 0.0) if hasattr(self._content_frame, 'attributes') else None
-            # CTkFrame不支持alpha，用after延迟显示模拟
-            self._content_frame.pack(fill="both", expand=True)
+            if hasattr(self.scroll_frame, '_scrollbar'):
+                sb = self.scroll_frame._scrollbar
+                if not sb.winfo_ismapped():
+                    sb.pack(side="right", fill="y")
         except Exception:
             pass
 
@@ -189,9 +199,16 @@ class FolderWindow(ctk.CTkToplevel):
                     self.destroy()
                 return
 
+            # 回收动画开始时隐藏滚动条，避免缩放中状态变化
+            try:
+                if hasattr(self.scroll_frame, '_scrollbar'):
+                    self.scroll_frame._scrollbar.pack_forget()
+            except Exception:
+                pass
+
             # 预计算所有帧参数
-            frames = 16
-            delay = 11  # 每帧11ms，总时长约176ms
+            frames = 14
+            delay = 10  # 每帧10ms，总时长约140ms
 
             start_w = self._target_w
             start_h = self._target_h
