@@ -21,6 +21,46 @@ LR_DEFAULTSIZE = 0x00000040
 IMAGE_ICON = 1
 IDI_APPLICATION = 32512
 
+# COM GUID 结构（用于 SHGetImageList）
+class _GUID(ctypes.Structure):
+    _fields_ = [
+        ("Data1", ctypes.c_ulong),
+        ("Data2", ctypes.c_ushort),
+        ("Data3", ctypes.c_ushort),
+        ("Data4", ctypes.c_ubyte * 8),
+    ]
+
+def _make_guid(s):
+    parts = s.strip('{}').split('-')
+    data4 = bytes.fromhex(parts[3] + parts[4])
+    return _GUID(int(parts[0], 16), int(parts[1], 16), int(parts[2], 16),
+                 (ctypes.c_ubyte * 8)(*data4))
+
+_IID_IImageList = _make_guid("{46EB5926-582E-4017-9FDF-E8998DAA0950}")
+
+# SHGetImageList 常量
+_SHGFI_SYSICONINDEX = 0x4000
+_SHIL_JUMBO = 0x4  # 256x256
+_ILD_TRANSPARENT = 0x00000001
+
+_dpi_scale_cache = None
+
+def _get_dpi_scale():
+    """获取系统 DPI 缩放比例（带缓存）"""
+    global _dpi_scale_cache
+    if _dpi_scale_cache is not None:
+        return _dpi_scale_cache
+    try:
+        _user32 = ctypes.windll.user32
+        _user32.SetProcessDPIAware()
+        hdc = _user32.GetDC(0)
+        dpi_x = ctypes.windll.gdi32.GetDeviceCaps(hdc, 88)  # LOGPIXELSX
+        _user32.ReleaseDC(0, hdc)
+        _dpi_scale_cache = dpi_x / 96.0
+    except Exception:
+        _dpi_scale_cache = 1.0
+    return _dpi_scale_cache
+
 # 自定义 BITMAPINFOHEADER 结构体（wintypes中没有）
 class BITMAPINFOHEADER(ctypes.Structure):
     _fields_ = [
@@ -60,7 +100,7 @@ class BITMAP(ctypes.Structure):
 
 def _get_icon_cache_path(app_path: str) -> str:
     path_hash = hashlib.md5(app_path.encode('utf-8')).hexdigest()
-    return os.path.join(ICON_CACHE_DIR, f"{path_hash}.png")
+    return os.path.join(ICON_CACHE_DIR, f"{path_hash}_hd.png")
 
 
 def _is_cache_valid(app_path: str, cache_path: str) -> bool:
@@ -106,7 +146,8 @@ def _is_icon_valid(img) -> bool:
         return False
 
 
-def _prepare_icon_for_display(img: Image.Image, target_size: int = 48) -> Image.Image:
+def _process_icon(img: Image.Image) -> Image.Image:
+    """仅做白色背景透明化，不缩放（用于缓存原始大图）"""
     if img is None:
         return None
     try:
@@ -119,7 +160,20 @@ def _prepare_icon_for_display(img: Image.Image, target_size: int = 48) -> Image.
             else:
                 new_data.append(item)
         img.putdata(new_data)
-        img = img.resize((target_size, target_size), Image.LANCZOS)
+        return img
+    except Exception as e:
+        logger.debug(f"图标处理失败: {e}")
+        return img
+
+
+def _prepare_icon_for_display(img: Image.Image, target_size: int = 48) -> Image.Image:
+    """白色透明化 + 缩放到目标尺寸（用于显示）"""
+    if img is None:
+        return None
+    try:
+        img = _process_icon(img)
+        if img.width != target_size or img.height != target_size:
+            img = img.resize((target_size, target_size), Image.LANCZOS)
         return img
     except Exception as e:
         logger.debug(f"图标预处理失败: {e}")
@@ -247,13 +301,85 @@ def _hicon_to_pil(hicon, size: int = 48):
         return None
 
 
+def _extract_icon_jumbo(app_path: str):
+    """高清提取：通过 SHGetImageList 获取 256x256 系统图标（方案A）
+
+    比 ExtractIconEx 的 40x40 清晰得多。失败时返回 None，由调用方回退。
+    """
+    try:
+        if not os.path.exists(app_path):
+            return None
+
+        _shell32 = ctypes.windll.shell32
+
+        # 获取系统图标列表索引
+        class _SHFILEINFO(ctypes.Structure):
+            _fields_ = [
+                ("hIcon", wintypes.HICON),
+                ("iIcon", ctypes.c_int),
+                ("dwAttributes", wintypes.DWORD),
+                ("szDisplayName", ctypes.c_wchar * 260),
+                ("szTypeName", ctypes.c_wchar * 80),
+            ]
+        sfi = _SHFILEINFO()
+        ret = _shell32.SHGetFileInfoW(app_path, 0, ctypes.byref(sfi), ctypes.sizeof(sfi), _SHGFI_SYSICONINDEX)
+        if sfi.hIcon:
+            ctypes.windll.user32.DestroyIcon(sfi.hIcon)
+        if ret == 0 or sfi.iIcon < 0:
+            return None
+
+        # 获取 256x256 图像列表
+        _shell32.SHGetImageList.argtypes = [ctypes.c_int, ctypes.POINTER(_GUID), ctypes.POINTER(ctypes.c_void_p)]
+        _shell32.SHGetImageList.restype = ctypes.c_long
+        ppv = ctypes.c_void_p()
+        hr = _shell32.SHGetImageList(_SHIL_JUMBO, ctypes.byref(_IID_IImageList), ctypes.byref(ppv))
+        if hr != 0 or not ppv.value:
+            return None
+
+        try:
+            # 调用 IImageList::GetIcon（vtable index 10）
+            vtbl_ptr = ctypes.cast(ppv.value, ctypes.POINTER(ctypes.c_void_p)).contents
+            vtbl = ctypes.cast(vtbl_ptr, ctypes.POINTER(ctypes.c_void_p * 16)).contents
+            GetIconProto = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(wintypes.HICON))
+            GetIcon = ctypes.cast(vtbl[10], GetIconProto)
+            hicon = wintypes.HICON()
+            hr2 = GetIcon(ppv.value, sfi.iIcon, _ILD_TRANSPARENT, ctypes.byref(hicon))
+            if hr2 != 0 or not hicon.value:
+                return None
+            return _hicon_to_pil(hicon, 256)
+        finally:
+            # Release IImageList
+            try:
+                ReleaseProto = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)
+                Release = ctypes.cast(vtbl[2], ReleaseProto)
+                Release(ppv.value)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug(f"JUMBO高清提取失败: {e}")
+        return None
+
+
 def get_app_icon(app_path: str, icon_path: str = None, size: int = 48, original_path: str = None):
-    """获取应用图标 - 依次尝试多种方法"""
+    """获取应用图标 - 依次尝试多种方法
+
+    高清策略：优先用 SHGetImageList 提取 256x256 原图缓存，
+    显示时按 DPI 缩放（方案A+B+C）。
+    """
+    # DPI 适配目标尺寸（方案B）
+    dpi_scale = _get_dpi_scale()
+    target_size = max(size, int(round(size * dpi_scale)))
+
     cached = _load_icon_from_cache(app_path)
     if cached and _is_icon_valid(cached):
-        return _prepare_icon_for_display(cached, size)
+        # 从缓存原图缩放到 DPI 适配尺寸
+        return _prepare_icon_for_display(cached, target_size)
 
     img = None
+
+    # 方法0: SHGetImageList 256x256 高清提取（方案A，最优先）
+    if img is None or not _is_icon_valid(img):
+        img = _extract_icon_jumbo(app_path)
 
     # 方法1: ExtractIconEx (ctypes，最可靠)
     if img is None or not _is_icon_valid(img):
@@ -285,9 +411,10 @@ def get_app_icon(app_path: str, icon_path: str = None, size: int = 48, original_
             pass
 
     if img and _is_icon_valid(img):
-        prepared = _prepare_icon_for_display(img, size)
-        _save_icon_to_cache(app_path, prepared)
-        return prepared
+        # 缓存原始大图（仅白色透明化，不缩放），显示时再按需缩放（方案C）
+        raw_icon = _process_icon(img)
+        _save_icon_to_cache(app_path, raw_icon)
+        return _prepare_icon_for_display(raw_icon, target_size)
 
     return None
 
