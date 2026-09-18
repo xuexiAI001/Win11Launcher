@@ -147,16 +147,40 @@ def _is_icon_valid(img) -> bool:
 
 
 def _process_icon(img: Image.Image) -> Image.Image:
-    """仅做白色背景透明化，不缩放（用于缓存原始大图）"""
+    """白色背景透明化：flood fill从四角只删外部背景，保留图标内部白色内容
+
+    旧实现全局删除所有白色像素，会误删图标内部的白色文字/图案（深色模式下明显）。
+    新实现从四角洪水填充，只去除与角落相连的外部白色背景。
+    """
     if img is None:
         return None
     try:
+        from PIL import ImageDraw
         img = img.convert("RGBA")
-        datas = img.getdata()
+        w, h = img.size
+
+        # 标记色：纯绿，图标中几乎不可能出现
+        MARKER = (0, 255, 0, 255)
+        marker = img.copy()
+        draw = ImageDraw.Draw(marker)
+
+        # 从四角开始 flood fill 白色背景
+        corners = [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]
+        for x, y in corners:
+            try:
+                pixel = marker.getpixel((x, y))
+                # 角点必须是接近白色且不透明才填充
+                if pixel[0] > 235 and pixel[1] > 235 and pixel[2] > 235 and pixel[3] > 200:
+                    ImageDraw.floodfill(marker, (x, y), MARKER, thresh=25)
+            except Exception:
+                pass
+
+        # 把标记的外部背景变透明，其余像素保持原样
+        datas = marker.getdata()
         new_data = []
         for item in datas:
-            if item[0] > 240 and item[1] > 240 and item[2] > 240 and item[3] > 200:
-                new_data.append((255, 255, 255, 0))
+            if item[0] == 0 and item[1] == 255 and item[2] == 0 and item[3] == 255:
+                new_data.append((0, 0, 0, 0))
             else:
                 new_data.append(item)
         img.putdata(new_data)
