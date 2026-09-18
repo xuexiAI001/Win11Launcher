@@ -2588,6 +2588,22 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             if not apps:
                 apps = sorted(self._scan_start_menu_apps())
 
+            # 构建「应用名 -> 所在位置列表」映射（含文件夹内应用，位置格式：分类/文件夹）
+            added_map = {}
+            for cat, cat_apps in self.app_config.items():
+                for app in cat_apps:
+                    if app.get("type") == "folder":
+                        folder_name = app.get("name", "")
+                        for sub in app.get("apps", []):
+                            nm = sub.get("name", "")
+                            if nm:
+                                added_map.setdefault(nm, []).append(f"{cat}/{folder_name}")
+                    else:
+                        nm = app.get("name", "")
+                        if nm:
+                            added_map.setdefault(nm, []).append(cat)
+            added_count = sum(1 for nm in apps if nm in added_map)
+
             dlg = ctk.CTkToplevel(self)
             apply_acrylic(dlg, parent=self)
             dlg.title(f"已扫描应用（共 {len(apps)} 个）")
@@ -2604,7 +2620,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             top_frame = ctk.CTkFrame(dlg, fg_color="transparent")
             top_frame.pack(fill="x", padx=15, pady=(10, 5))
 
-            count_label = ctk.CTkLabel(top_frame, text=f"共 {len(apps)} 个应用，已选中 0 个", font=ctk.CTkFont(size=13, weight="bold"))
+            count_label = ctk.CTkLabel(top_frame, text=f"共 {len(apps)} 个 · 已添加 {added_count} 个 · 已选中 0 个", font=ctk.CTkFont(size=13, weight="bold"))
             count_label.pack(side="left")
 
             # 全选/取消全选
@@ -2616,7 +2632,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
             def update_count():
                 selected = sum(1 for v in checkbox_vars.values() if v.get())
-                count_label.configure(text=f"共 {len(apps)} 个应用，已选中 {selected} 个")
+                count_label.configure(text=f"共 {len(apps)} 个 · 已添加 {added_count} 个 · 已选中 {selected} 个")
                 add_btn.configure(state="normal" if selected > 0 else "disabled")
 
             def select_all():
@@ -2668,6 +2684,19 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 icon_label.pack(side="left", padx=(0, 5))
 
                 ctk.CTkLabel(item, text=f"{idx:3d}.  {app_name}", font=ctk.CTkFont(size=12), anchor="w").pack(side="left", padx=2)
+
+                # 已添加标记：显示所在分类/文件夹，允许跨分类继续添加（复选框不禁用）
+                locations = added_map.get(app_name, [])
+                if locations:
+                    loc_text = "已添加 · " + "、".join(locations[:3])
+                    if len(locations) > 3:
+                        loc_text += f" 等{len(locations)}处"
+                    ctk.CTkLabel(
+                        item, text=loc_text,
+                        font=ctk.CTkFont(size=10),
+                        text_color=("#107C10", "#6CCB6C"),
+                        anchor="e"
+                    ).pack(side="right", padx=(0, 8))
 
                 if hasattr(self, 'icon_executor'):
                     self.icon_executor.submit(load_icon_async, app_name, icon_label)
