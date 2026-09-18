@@ -23,6 +23,8 @@ class FolderWindow(ctk.CTkToplevel):
             anchor_x, anchor_y: 动画起始位置（文件夹图标中心），None则居中
         """
         super().__init__(parent)
+        # 先隐藏窗口，设置好标题栏颜色后再显示，避免白色闪烁
+        self.withdraw()
         self.parent_window = parent
         self.folder_data = folder_data
         self.folder_key = folder_key
@@ -54,7 +56,9 @@ class FolderWindow(ctk.CTkToplevel):
         self._target_y = (self.winfo_screenheight() - self._target_h) // 2
         self.geometry(f"{self._target_w}x{self._target_h}+{self._target_x}+{self._target_y}")
         self.attributes('-alpha', self._target_alpha)
-
+        self.update_idletasks()
+        # 窗口句柄就绪后立即设置DWM标题栏颜色（此时窗口仍隐藏，无闪烁）
+        self._setup_titlebar_color()
 
         # 顶部标题栏
         title_frame = ctk.CTkFrame(self, fg_color="transparent", height=40)
@@ -80,11 +84,10 @@ class FolderWindow(ctk.CTkToplevel):
         # 关闭时从主窗口字典中移除
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # 普通展开：直接聚焦并置顶
+        # 显示窗口（标题栏颜色已设置好，无白色闪烁）
+        self.deiconify()
         self.focus_force()
         self.after(50, self._ensure_on_top)
-        # 窗口完全显示后再设置DWM标题栏颜色（太早调用不生效）
-        self.after(120, self._setup_titlebar_color)
     def _setup_acrylic_effect(self):
         """使用Windows DWM API设置亚克力效果（与主窗口保持一致）"""
         try:
