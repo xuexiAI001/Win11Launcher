@@ -203,6 +203,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         self._resize_timer_id = None
         self._is_initialized = False
         self._current_cols = 4
+        self._previous_category = None  # 上一个分类，用于快速切换
         self.bind("<Configure>", self._on_window_resize)
 
         # 初始化完成后设置标志
@@ -3027,7 +3028,10 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             self._handle_dropped_files(files)
 
     def _switch_category(self, category: str):
-        """切换分类"""
+        """切换分类 - 复用缓存，不重建卡片"""
+        if category == self.current_category:
+            return
+        self._previous_category = self.current_category
         self.current_category = category
 
         for cat, btn in self.tab_buttons.items():
@@ -3042,7 +3046,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     text_color=("gray10", "gray90")
                 )
 
-        self._refresh_grid(force=True)
+        self._refresh_grid(force=False)
 
     def _refresh_grid(self, force=False):
         """刷新应用网格 - 使用缓存提升性能"""
@@ -3057,20 +3061,28 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         
         self._current_cols = new_cols
         
-        # 先隐藏所有分类的项目
-        for cat, items in self.category_items_cache.items():
-            for item in items:
-                item.grid_remove()
-        
-        # 额外清理：直接遍历grid_frame的所有子组件，确保所有旧项目都被隐藏
-        # 防止缓存被清空但组件仍然存在的问题
-        child_count = 0
-        for child in self.grid_frame.winfo_children():
-            try:
-                child.grid_remove()
-                child_count += 1
-            except:
-                pass
+        # 只隐藏上一个分类的项目（快速切换），首次加载或force时隐藏全部分类
+        if not force and self._previous_category and self._previous_category != self.current_category:
+            prev_items = self.category_items_cache.get(self._previous_category, [])
+            for item in prev_items:
+                try:
+                    item.grid_remove()
+                except:
+                    pass
+        else:
+            # 隐藏所有分类的项目
+            for cat, items in self.category_items_cache.items():
+                for item in items:
+                    try:
+                        item.grid_remove()
+                    except:
+                        pass
+            # 额外清理grid_frame子组件
+            for child in self.grid_frame.winfo_children():
+                try:
+                    child.grid_remove()
+                except:
+                    pass
         
         # 移除拖放区域（如果存在）
         if hasattr(self, 'drop_zone') and self.drop_zone.winfo_exists():
