@@ -2889,25 +2889,78 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                                   border_width=1, border_color=("#E0D8D0", "#454545"))
         menu_frame.pack(fill="both", expand=True, padx=0, pady=4)
 
-        def do_create():
-            menu_window.destroy()
-            self._create_folder_with_dialog()
+        new_submenu = None
+        def close_new_submenu():
+            nonlocal new_submenu
+            for attr in ['_new_sub_open_timer', '_new_sub_close_timer']:
+                if hasattr(self, attr) and getattr(self, attr):
+                    self.after_cancel(getattr(self, attr))
+                    setattr(self, attr, None)
+            if new_submenu and new_submenu.winfo_exists():
+                new_submenu.destroy()
+            new_submenu = None
+            try:
+                if new_btn.winfo_exists():
+                    new_btn.configure(text="  ➕  新建                  ›")
+            except Exception:
+                pass
 
-        btn = ctk.CTkButton(
-            menu_frame,
-            text="  ➕  新建文件夹",
-            fg_color="transparent",
-            hover_color=hover_color,
-            text_color=fg_color,
-            command=do_create,
-            anchor="w",
-            height=32,
-            corner_radius=4,
-            font=ctk.CTkFont(size=13)
-        )
-        btn.pack(fill="x", padx=4, pady=1)
+        def create_new_submenu():
+            nonlocal new_submenu
+            if new_submenu and new_submenu.winfo_exists():
+                return
+            new_submenu = tk.Toplevel(self)
+            new_submenu.overrideredirect(True)
+            new_submenu.attributes("-topmost", True)
+            new_submenu.config(bg="#000001")
+            new_submenu.attributes("-transparentcolor", "#000001")
+            items = [("📁","文件夹","folder"),("📄","文本文档","txt"),("📘","Word 文档","docx"),
+                     ("📊","Excel 工作表","xlsx"),("📙","PowerPoint 演示","pptx")]
+            ns_x, ns_y = x + 165, y
+            sf = ctk.CTkFrame(new_submenu, fg_color=bg_color, corner_radius=8, border_width=1, border_color=("#E0D8D0","#454545"))
+            sf.pack(fill="both", expand=True, padx=0, pady=2)
+            for icon, label, ft in items:
+                ctk.CTkButton(sf, text=f"  {icon}  {label}", fg_color="transparent", hover_color=hover_color,
+                    text_color=fg_color, anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13),
+                    command=lambda f=ft: (close_new_submenu(), menu_window.destroy(), self._create_new_file(f))
+                ).pack(fill="x", padx=4, pady=0)
+            new_submenu.update_idletasks()
+            nh = sf.winfo_reqheight() + 4
+            if ns_y + nh > new_submenu.winfo_screenheight():
+                ns_y = new_submenu.winfo_screenheight() - nh - 10
+            new_submenu.geometry(f"180x{nh}+{ns_x}+{ns_y}")
+            new_submenu.update_idletasks()
+            _enable_menu_shadow(new_submenu)
+            try:
+                new_btn.configure(text="  ➕  新建                  ⌄")
+            except Exception:
+                pass
+            def _enter(e):
+                if hasattr(self,'_new_sub_close_timer') and self._new_sub_close_timer:
+                    self.after_cancel(self._new_sub_close_timer); self._new_sub_close_timer=None
+            def _leave(e):
+                if hasattr(self,'_new_sub_open_timer') and self._new_sub_open_timer:
+                    self.after_cancel(self._new_sub_open_timer); self._new_sub_open_timer=None
+                self._new_sub_close_timer = self.after(120, close_new_submenu)
+            new_submenu.bind("<Enter>", _enter)
+            new_submenu.bind("<Leave>", _leave)
 
-        width = 150
+        def _btn_enter(e):
+            if hasattr(self,'_new_sub_close_timer') and self._new_sub_close_timer:
+                self.after_cancel(self._new_sub_close_timer); self._new_sub_close_timer=None
+            self._new_sub_open_timer = self.after(120, create_new_submenu)
+        def _btn_leave(e):
+            if hasattr(self,'_new_sub_open_timer') and self._new_sub_open_timer:
+                self.after_cancel(self._new_sub_open_timer); self._new_sub_open_timer=None
+            self._new_sub_close_timer = self.after(120, close_new_submenu)
+
+        new_btn = ctk.CTkButton(menu_frame, text="  ➕  新建                  ›", fg_color="transparent",
+            hover_color=hover_color, text_color=fg_color, anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13))
+        new_btn.pack(fill="x", padx=4, pady=1)
+        new_btn.bind("<Enter>", _btn_enter)
+        new_btn.bind("<Leave>", _btn_leave)
+
+        width = 170
 
         # 先更新布局，获取实际渲染高度
         menu_window.update_idletasks()
@@ -2926,6 +2979,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         _enable_menu_shadow(menu_window)
 
         def on_esc(event):
+            close_new_submenu()
             if menu_window.winfo_exists():
                 menu_window.destroy()
 
@@ -2934,7 +2988,14 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 mx, my = event.x_root, event.y_root
                 wx, wy = menu_window.winfo_rootx(), menu_window.winfo_rooty()
                 ww, wh = menu_window.winfo_width(), menu_window.winfo_height()
-                if not (wx <= mx < wx + ww and wy <= my < wy + wh):
+                in_menu = wx <= mx < wx + ww and wy <= my < wy + wh
+                in_sub = False
+                if new_submenu and new_submenu.winfo_exists():
+                    sx, sy = new_submenu.winfo_rootx(), new_submenu.winfo_rooty()
+                    sw, sh = new_submenu.winfo_width(), new_submenu.winfo_height()
+                    in_sub = sx <= mx < sx + sw and sy <= my < sy + sh
+                if not in_menu and not in_sub:
+                    close_new_submenu()
                     menu_window.destroy()
 
         def on_destroy():
@@ -2982,6 +3043,55 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 
         entry.bind("<Return>", lambda e: confirm())
         ctk.CTkButton(dialog, text="确定", width=80, command=confirm).pack(pady=10)
+
+    def _create_new_file(self, file_type):
+        """新建文件并添加到当前分类 file_type: folder/txt/docx/xlsx/pptx"""
+        import time
+        if file_type == "folder":
+            self._create_folder_with_dialog()
+            return
+        desktop = os.path.join(os.path.expanduser('~'), 'Desktop')
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        type_map = {"txt": ("文本文档", ".txt"), "docx": ("Word 文档", ".docx"),
+                    "xlsx": ("Excel 工作表", ".xlsx"), "pptx": ("PowerPoint 演示文稿", ".pptx")}
+        if file_type not in type_map:
+            return
+        name, ext = type_map[file_type]
+        base_name = f"新建{name}{timestamp}"
+        file_path = os.path.join(desktop, base_name + ext)
+        n = 1
+        while os.path.exists(file_path):
+            file_path = os.path.join(desktop, f"{base_name}({n}){ext}")
+            n += 1
+        try:
+            if file_type == "txt":
+                open(file_path, 'w', encoding='utf-8').close()
+            else:
+                ok = False
+                try:
+                    import win32com.client
+                    pm = {"docx": "Word.Application", "xlsx": "Excel.Application", "pptx": "PowerPoint.Application"}
+                    ap = win32com.client.Dispatch(pm[file_type])
+                    ap.Visible = False
+                    if file_type == "docx":
+                        d = ap.Documents.Add(); d.SaveAs(file_path); d.Close()
+                    elif file_type == "xlsx":
+                        w = ap.Workbooks.Add(); w.SaveAs(file_path); w.Close()
+                    else:
+                        p = ap.Presentations.Add(); p.SaveAs(file_path); p.Close()
+                    ap.Quit(); ok = True
+                except Exception:
+                    pass
+                if not ok:
+                    open(file_path, 'wb').close()
+        except Exception as e:
+            logger.debug(f"新建文件失败: {e}")
+            self._show_message(f"新建{name}失败")
+            return
+        self.app_config[self.current_category].append({"name": base_name, "path": file_path, "icon_path": None, "original_path": None})
+        self._save_config()
+        self._refresh_grid(force=True)
+        self._show_message(f"已新建{name}并添加到启动台")
 
     def _move_app_to_folder(self, app_data, folder_name):
         """将应用移动到指定文件夹"""

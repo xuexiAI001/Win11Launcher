@@ -664,7 +664,11 @@ class AppGridItem(ctk.CTkFrame):
         move_btn.bind("<Leave>", on_move_btn_leave)
 
         def set_move_arrow(arrow):
-            move_btn.configure(text=f"  ⇄  移动分类            {arrow}")
+            try:
+                if move_btn.winfo_exists():
+                    move_btn.configure(text=f"  ⇄  移动分类            {arrow}")
+            except Exception:
+                pass
 
         # 移动到文件夹 - 二级菜单
         folder_submenu = None
@@ -790,7 +794,11 @@ class AppGridItem(ctk.CTkFrame):
         if self.in_folder:
             add_menu_item("移出文件夹", self._remove_from_current_folder, icon="←")
         def set_folder_arrow(arrow):
-            folder_btn.configure(text=f"  →  移动到文件夹        {arrow}")
+            try:
+                if folder_btn.winfo_exists():
+                    folder_btn.configure(text=f"  →  移动到文件夹        {arrow}")
+            except Exception:
+                pass
 
         add_menu_item("", None, is_separator=True)
         add_menu_item("更换图标", self._change_icon, icon="◉")
