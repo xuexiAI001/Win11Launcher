@@ -976,21 +976,18 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                     logger.debug(f"顶层父窗口 = {temp}")
                     hwnd = temp
             
-            # ========== 方法1: 使用win32api ==========
+            # ========== 方法1: 使用ctypes设置窗口属性（64位安全） ==========
             try:
-                import win32gui
-                import win32api
-                import win32con
-                
-                # 尝试使用win32api设置窗口属性
-                style = win32api.GetWindowLong(hwnd, win32con.GWL_STYLE)
-                logger.debug(f"方法1 win32api.GetWindowLong: style={style}")
-                
-                # 尝试使用win32gui的SetProp
+                GWL_STYLE = -16
+                # 用 GetWindowLongPtrW 替代 win32api.GetWindowLong，避免64位hwnd溢出
+                user32.GetWindowLongPtrW.argtypes = [wintypes.HWND, ctypes.c_int]
+                user32.GetWindowLongPtrW.restype = ctypes.c_longlong
+                style = user32.GetWindowLongPtrW(hwnd, GWL_STYLE)
+                logger.debug(f"方法1 GetWindowLongPtrW: style={style}")
+
+                # 设置窗口属性
                 ctypes.windll.user32.SetPropW(hwnd, "UseImmersiveDarkModeColors", 1 if is_dark_mode else 0)
-                logger.debug(f"方法1 ctypes.SetPropW: {'深色' if is_dark_mode else '浅色'}")
-            except ImportError:
-                logger.debug("方法1 win32api不可用")
+                logger.debug(f"方法1 SetPropW: {'深色' if is_dark_mode else '浅色'}")
             except Exception as e:
                 logger.debug(f"方法1失败: {e}")
             
