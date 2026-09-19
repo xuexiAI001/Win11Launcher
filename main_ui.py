@@ -2243,19 +2243,25 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             fg_color="transparent"
         )
         self.grid_frame.pack(fill="both", expand=True)
-        # 空白处右键菜单：给所有可能的空白区域绑定
-        self.grid_frame.bind("<Button-3>", self._show_grid_context_menu)
-        scroll_frame.bind("<Button-3>", self._show_grid_context_menu)
-        # CTkScrollableFrame 内部 canvas 也绑定（滚动区域的空白部分）
+        # 空白处右键菜单：用 add="+" 绑定所有层级，不覆盖原有事件
+        def _bind_right(widget):
+            try:
+                widget.bind("<Button-3>", self._show_grid_context_menu, add="+")
+            except Exception:
+                pass
+        _bind_right(self.grid_frame)
+        _bind_right(scroll_frame)
+        _bind_right(self.main_frame)
         try:
-            scroll_frame._canvas.bind("<Button-3>", self._show_grid_context_menu)
+            _bind_right(scroll_frame._canvas)
         except Exception:
             pass
-        # 外层主框架也绑定（确保边缘空白区域能响应）
         try:
-            self.main_frame.bind("<Button-3>", self._show_grid_context_menu)
+            _bind_right(scroll_frame._parent_frame)
         except Exception:
             pass
+        # 给主窗口也绑定（最可靠，确保所有空白区域都能触发）
+        self.bind("<Button-3>", self._show_grid_context_menu, add="+")
 
 
         # 创建拖放区域（初始显示）
@@ -2862,6 +2868,16 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             parent = getattr(parent, '_parent', None) or getattr(parent, 'master', None)
             if parent is None or parent == self.grid_frame:
                 break
+
+        # 坐标判断：必须在滚动区域内才显示菜单（排除分类栏、底部栏等）
+        try:
+            sf = self.scroll_frame
+            sx, sy = sf.winfo_rootx(), sf.winfo_rooty()
+            sw, sh = sf.winfo_width(), sf.winfo_height()
+            if not (sx <= event.x_root < sx + sw and sy <= event.y_root < sy + sh):
+                return
+        except Exception:
+            pass
 
         x, y = event.x_root, event.y_root
 
