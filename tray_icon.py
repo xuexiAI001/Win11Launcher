@@ -3,6 +3,7 @@
 系统托盘模块 - 关闭最小化到托盘、托盘菜单、点击唤起
 """
 import os
+import sys
 import logging
 import threading
 from PIL import Image, ImageDraw
@@ -77,8 +78,9 @@ class TrayManager:
         try:
             import pystray
 
-            # 优先使用本地图标文件
-            icon_path = os.path.join(os.path.dirname(__file__), "assets", "app.ico")
+            # 优先使用本地图标文件（支持打包后的 _MEIPASS 路径）
+            base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+            icon_path = os.path.join(base_dir, "assets", "app.ico")
             if os.path.exists(icon_path):
                 icon_image = Image.open(icon_path)
             else:
