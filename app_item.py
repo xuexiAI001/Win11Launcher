@@ -307,10 +307,10 @@ class AppGridItem(ctk.CTkFrame):
             sep = ctk.CTkFrame(menu_frame, height=1, fg_color=separator_color)
             sep.pack(fill="x", padx=12, pady=5)
 
-        add_item("打开", self._open_folder, icon="▶")
-        add_item("重命名", self._rename_folder, icon="✎")
+        add_item("打开", self._open_folder, icon="📂")
+        add_item("重命名", self._rename_folder, icon="✏️")
         add_sep()
-        add_item("删除文件夹", self._delete_folder, icon="✕")
+        add_item("删除文件夹", self._delete_folder, icon="🗑")
 
         width = 150
 
@@ -644,13 +644,13 @@ class AppGridItem(ctk.CTkFrame):
                 )
                 btn.pack(fill="x", padx=4, pady=0)
 
-        add_menu_item("启动", self._launch_app, icon="▶")
-        add_menu_item("管理员身份启动", self._launch_as_admin, icon="⬆")
+        add_menu_item("启动", self._launch_app, icon="🚀")
+        add_menu_item("管理员身份启动", self._launch_as_admin, icon="🔼")
         add_menu_item("", None, is_separator=True)
 
         move_btn = ctk.CTkButton(
             menu_frame,
-            text="  ⇄  移动分类            ›",
+            text="  🔀  移动分类            ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -666,7 +666,7 @@ class AppGridItem(ctk.CTkFrame):
         def set_move_arrow(arrow):
             try:
                 if move_btn.winfo_exists():
-                    move_btn.configure(text=f"  ⇄  移动分类            {arrow}")
+                    move_btn.configure(text=f"  🔀  移动分类            {arrow}")
             except Exception:
                 pass
 
@@ -776,7 +776,7 @@ class AppGridItem(ctk.CTkFrame):
 
         folder_btn = ctk.CTkButton(
             menu_frame,
-            text="  →  移动到文件夹        ›",
+            text="  📂  移动到文件夹        ›",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -792,23 +792,23 @@ class AppGridItem(ctk.CTkFrame):
 
         # 如果在文件夹内，添加"移出文件夹"选项
         if self.in_folder:
-            add_menu_item("移出文件夹", self._remove_from_current_folder, icon="←")
+            add_menu_item("移出文件夹", self._remove_from_current_folder, icon="↩️")
         def set_folder_arrow(arrow):
             try:
                 if folder_btn.winfo_exists():
-                    folder_btn.configure(text=f"  →  移动到文件夹        {arrow}")
+                    folder_btn.configure(text=f"  📂  移动到文件夹        {arrow}")
             except Exception:
                 pass
 
         add_menu_item("", None, is_separator=True)
-        add_menu_item("更换图标", self._change_icon, icon="◉")
-        add_menu_item("重命名", self._rename_app, icon="✎")
+        add_menu_item("更换图标", self._change_icon, icon="🖼")
+        add_menu_item("重命名", self._rename_app, icon="✏️")
         add_menu_item("", None, is_separator=True)
-        add_menu_item("删除应用", self._delete_app, icon="✕")
-        add_menu_item("清空当前分类", self._clear_category, icon="⊘")
+        add_menu_item("删除应用", self._delete_app, icon="🗑")
+        add_menu_item("清空当前分类", self._clear_category, icon="🧹")
         add_menu_item("", None, is_separator=True)
-        add_menu_item("打开文件位置", self._open_file_location, icon="⊞")
-        add_menu_item("属性", self._show_properties, icon="ⓘ")
+        add_menu_item("打开文件位置", self._open_file_location, icon="📁")
+        add_menu_item("属性", self._show_properties, icon="ℹ️")
 
         width = 195
 
