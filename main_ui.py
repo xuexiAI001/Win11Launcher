@@ -2869,16 +2869,6 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             if parent is None or parent == self.grid_frame:
                 break
 
-        # 坐标判断：必须在滚动区域内才显示菜单（排除分类栏、底部栏等）
-        try:
-            sf = self.scroll_frame
-            sx, sy = sf.winfo_rootx(), sf.winfo_rooty()
-            sw, sh = sf.winfo_width(), sf.winfo_height()
-            if not (sx <= event.x_root < sx + sw and sy <= event.y_root < sy + sh):
-                return
-        except Exception:
-            pass
-
         x, y = event.x_root, event.y_root
 
         # 关闭其他已打开的菜单
