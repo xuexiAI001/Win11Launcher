@@ -2243,9 +2243,19 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             fg_color="transparent"
         )
         self.grid_frame.pack(fill="both", expand=True)
-        # 空白处右键菜单：新建文件夹
+        # 空白处右键菜单：给所有可能的空白区域绑定
         self.grid_frame.bind("<Button-3>", self._show_grid_context_menu)
         scroll_frame.bind("<Button-3>", self._show_grid_context_menu)
+        # CTkScrollableFrame 内部 canvas 也绑定（滚动区域的空白部分）
+        try:
+            scroll_frame._canvas.bind("<Button-3>", self._show_grid_context_menu)
+        except Exception:
+            pass
+        # 外层主框架也绑定（确保边缘空白区域能响应）
+        try:
+            self.main_frame.bind("<Button-3>", self._show_grid_context_menu)
+        except Exception:
+            pass
 
 
         # 创建拖放区域（初始显示）
