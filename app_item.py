@@ -9,22 +9,38 @@ import customtkinter as ctk
 
 _emoji_cache = {}
 def _render_emoji_image(emoji, size=18):
-    """用PIL渲染彩色emoji为CTkImage，带缓存"""
+    """用PIL渲染彩色emoji为CTkImage，带缓存。大画布渲染后裁剪，避免变体选择符导致裁剪"""
     key = (emoji, size)
     if key in _emoji_cache:
         return _emoji_cache[key]
     try:
         from PIL import Image, ImageDraw, ImageFont
         font = ImageFont.truetype("C:/Windows/Fonts/seguiemj.ttf", size)
-        pad = size + 6
-        img = Image.new("RGBA", (pad, pad), (0, 0, 0, 0))
+        # 用足够大的画布渲染，避免emoji溢出被裁剪
+        big = size * 3
+        img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
+        # 居中绘制
         bbox = draw.textbbox((0, 0), emoji, font=font)
         w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        x = (pad - w) // 2 - bbox[0]
-        y = (pad - h) // 2 - bbox[1]
+        x = (big - w) // 2 - bbox[0]
+        y = (big - h) // 2 - bbox[1]
         draw.text((x, y), emoji, font=font, embedded_color=True)
-        ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
+        # 自动裁剪到非透明区域
+        bbox2 = img.getbbox()
+        if bbox2:
+            img = img.crop(bbox2)
+        # 缩放到目标尺寸（保持比例）
+        iw, ih = img.size
+        scale = min(size / iw, size / ih) if max(iw, ih) > size else 1
+        if scale < 1:
+            img = img.resize((int(iw * scale), int(ih * scale)), Image.LANCZOS)
+        # 放到正方形画布居中
+        final = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        fx = (size - img.size[0]) // 2
+        fy = (size - img.size[1]) // 2
+        final.paste(img, (fx, fy), img)
+        ctk_img = ctk.CTkImage(light_image=final, dark_image=final, size=(size, size))
         _emoji_cache[key] = ctk_img
         return ctk_img
     except Exception:

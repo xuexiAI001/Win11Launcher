@@ -60,7 +60,7 @@ from PIL import Image, ImageTk
 from icon_extractor import get_app_icon
 from app_info import get_app_info
 from drop_zone import DropZone
-from app_item import AppGridItem, _enable_menu_shadow
+from app_item import AppGridItem, _render_emoji_image, _enable_menu_shadow
 from tray_icon import TrayManager
 from folder_window import FolderWindow
 
@@ -2917,7 +2917,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             new_submenu = None
             try:
                 if new_btn.winfo_exists():
-                    new_btn.configure(text="  ➕  新建                  ›")
+                    new_btn.configure(text="  新建                  ›")
             except Exception:
                 pass
 
@@ -2936,10 +2936,18 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             sf = ctk.CTkFrame(new_submenu, fg_color=bg_color, corner_radius=8, border_width=1, border_color=("#E0D8D0","#454545"))
             sf.pack(fill="both", expand=True, padx=0, pady=2)
             for icon, label, ft in items:
-                ctk.CTkButton(sf, text=f"  {icon}  {label}", fg_color="transparent", hover_color=hover_color,
-                    text_color=fg_color, anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13),
-                    command=lambda f=ft: (close_new_submenu(), menu_window.destroy(), self._create_new_file(f))
-                ).pack(fill="x", padx=4, pady=0)
+                sub_icon = _render_emoji_image(icon)
+                if sub_icon:
+                    ctk.CTkButton(sf, text=f"  {label}", image=sub_icon, compound="left", fg_color="transparent",
+                        hover_color=hover_color, text_color=fg_color, anchor="w", height=32, corner_radius=4,
+                        font=ctk.CTkFont(size=13),
+                        command=lambda f=ft: (close_new_submenu(), menu_window.destroy(), self._create_new_file(f))
+                    ).pack(fill="x", padx=4, pady=0)
+                else:
+                    ctk.CTkButton(sf, text=f"  {icon}  {label}", fg_color="transparent", hover_color=hover_color,
+                        text_color=fg_color, anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13),
+                        command=lambda f=ft: (close_new_submenu(), menu_window.destroy(), self._create_new_file(f))
+                    ).pack(fill="x", padx=4, pady=0)
             new_submenu.update_idletasks()
             nh = sf.winfo_reqheight() + 4
             if ns_y + nh > new_submenu.winfo_screenheight():
@@ -2948,7 +2956,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             new_submenu.update_idletasks()
             _enable_menu_shadow(new_submenu)
             try:
-                new_btn.configure(text="  ➕  新建                  ⌄")
+                new_btn.configure(text="  新建                  ⌄")
             except Exception:
                 pass
             def _enter(e):
@@ -2970,8 +2978,9 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 self.after_cancel(self._new_sub_open_timer); self._new_sub_open_timer=None
             self._new_sub_close_timer = self.after(120, close_new_submenu)
 
-        new_btn = ctk.CTkButton(menu_frame, text="  ➕  新建                  ›", fg_color="transparent",
-            hover_color=hover_color, text_color=fg_color, anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13))
+        new_icon = _render_emoji_image("➕")
+        new_btn = ctk.CTkButton(menu_frame, text="  新建                  ›", image=new_icon, compound="left",
+            fg_color="transparent", hover_color=hover_color, text_color=fg_color, anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13))
         new_btn.pack(fill="x", padx=4, pady=1)
         new_btn.bind("<Enter>", _btn_enter)
         new_btn.bind("<Leave>", _btn_leave)
