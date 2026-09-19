@@ -1538,10 +1538,14 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         logger.debug(f"========== 主题切换完成 ==========")
 
     def _change_alpha(self, value):
-        """更改透明度"""
+        """更改透明度（防抖保存：拖动时实时预览，停止300ms后才保存）"""
         self.alpha_value_label.configure(text=f"{int(value * 100)}%")
         self.attributes('-alpha', value)
-        self._save_config()
+        # 取消之前的保存计时器
+        if hasattr(self, '_alpha_save_timer') and self._alpha_save_timer:
+            self.after_cancel(self._alpha_save_timer)
+        # 300ms后保存（防抖）
+        self._alpha_save_timer = self.after(300, self._save_config)
 
     def _check_autostart(self):
         """检查是否已设置开机自启动"""
