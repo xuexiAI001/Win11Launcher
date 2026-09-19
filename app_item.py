@@ -295,7 +295,7 @@ class AppGridItem(ctk.CTkFrame):
                 fg_color="transparent",
                 hover_color=hover_color,
                 text_color=fg_color,
-                command=lambda: (command(), menu_window.destroy()),
+                command=lambda: (menu_window.destroy(), command()),
                 anchor="w",
                 height=32,
                 corner_radius=4,
@@ -570,7 +570,7 @@ class AppGridItem(ctk.CTkFrame):
                     fg_color="transparent",
                     hover_color=hover_color,
                     text_color=fg_color,
-                    command=lambda c=cat: (self._do_move_category(c), menu_window.destroy()),
+                    command=lambda c=cat: (menu_window.destroy(), self._do_move_category(c)),
                     anchor="w",
                     height=30,
                     corner_radius=4,
@@ -636,7 +636,7 @@ class AppGridItem(ctk.CTkFrame):
                     fg_color="transparent",
                     hover_color=hover_color,
                     text_color=fg_color,
-                    command=lambda: (command(), menu_window.destroy()),
+                    command=lambda: (menu_window.destroy(), command()),
                     anchor="w",
                     height=30,
                     corner_radius=4,
@@ -706,7 +706,7 @@ class AppGridItem(ctk.CTkFrame):
                 btn = ctk.CTkButton(
                     sf_frame, text="    " + fname, fg_color="transparent",
                     hover_color=hover_color, text_color=fg_color,
-                    command=lambda f=fname: (self.parent_window._move_app_to_folder(self.app_data, f), menu_window.destroy()),
+                    command=lambda f=fname: (menu_window.destroy(), self.parent_window._move_app_to_folder(self.app_data, f)),
                     anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13)
                 )
                 btn.pack(fill="x", padx=4, pady=0)
@@ -718,7 +718,7 @@ class AppGridItem(ctk.CTkFrame):
             ctk.CTkButton(
                 sf_frame, text="    新建文件夹...", fg_color="transparent",
                 hover_color=hover_color, text_color=fg_color,
-                command=lambda: (self._create_and_move_to_folder(), menu_window.destroy()),
+                command=lambda: (menu_window.destroy(), self._create_and_move_to_folder()),
                 anchor="w", height=30, corner_radius=4, font=ctk.CTkFont(size=13)
             ).pack(fill="x", padx=4, pady=0)
 
