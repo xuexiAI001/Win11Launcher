@@ -6,6 +6,29 @@
 import os
 import logging
 import customtkinter as ctk
+
+_emoji_cache = {}
+def _render_emoji_image(emoji, size=18):
+    """用PIL渲染彩色emoji为CTkImage，带缓存"""
+    key = (emoji, size)
+    if key in _emoji_cache:
+        return _emoji_cache[key]
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        font = ImageFont.truetype("C:/Windows/Fonts/seguiemj.ttf", size)
+        pad = size + 6
+        img = Image.new("RGBA", (pad, pad), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        bbox = draw.textbbox((0, 0), emoji, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = (pad - w) // 2 - bbox[0]
+        y = (pad - h) // 2 - bbox[1]
+        draw.text((x, y), emoji, font=font, embedded_color=True)
+        ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
+        _emoji_cache[key] = ctk_img
+        return ctk_img
+    except Exception:
+        return None
 from window_effects import apply_acrylic
 import tkinter as tk
 from tkinter import filedialog
@@ -288,19 +311,22 @@ class AppGridItem(ctk.CTkFrame):
         menu_frame.pack(fill="both", expand=True, padx=0, pady=4)
 
         def add_item(label, command, icon=""):
-            display_text = f"  {icon}  {label}" if icon else f"    {label}"
-            btn = ctk.CTkButton(
-                menu_frame,
-                text=display_text,
-                fg_color="transparent",
-                hover_color=hover_color,
-                text_color=fg_color,
-                command=lambda: (menu_window.destroy(), command()),
-                anchor="w",
-                height=32,
-                corner_radius=4,
-                font=ctk.CTkFont(size=13)
-            )
+            icon_img = _render_emoji_image(icon) if icon else None
+            if icon_img:
+                btn = ctk.CTkButton(
+                    menu_frame, text=f"  {label}", image=icon_img, compound="left",
+                    fg_color="transparent", hover_color=hover_color, text_color=fg_color,
+                    command=lambda: (menu_window.destroy(), command()),
+                    anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13)
+                )
+            else:
+                display_text = f"  {icon}  {label}" if icon else f"    {label}"
+                btn = ctk.CTkButton(
+                    menu_frame, text=display_text, fg_color="transparent",
+                    hover_color=hover_color, text_color=fg_color,
+                    command=lambda: (menu_window.destroy(), command()),
+                    anchor="w", height=32, corner_radius=4, font=ctk.CTkFont(size=13)
+                )
             btn.pack(fill="x", padx=4, pady=1)
 
         def add_sep():
@@ -629,28 +655,34 @@ class AppGridItem(ctk.CTkFrame):
                 sep = ctk.CTkFrame(menu_frame, height=1, fg_color=separator_color)
                 sep.pack(fill="x", padx=12, pady=3)
             else:
-                display_text = f"  {icon}  {label}" if icon else f"    {label}"
-                btn = ctk.CTkButton(
-                    menu_frame,
-                    text=display_text,
-                    fg_color="transparent",
-                    hover_color=hover_color,
-                    text_color=fg_color,
-                    command=lambda: (menu_window.destroy(), command()),
-                    anchor="w",
-                    height=30,
-                    corner_radius=4,
-                    font=ctk.CTkFont(size=13)
-                )
+                icon_img = _render_emoji_image(icon) if icon else None
+                if icon_img:
+                    btn = ctk.CTkButton(
+                        menu_frame, text=f"  {label}", image=icon_img, compound="left",
+                        fg_color="transparent", hover_color=hover_color, text_color=fg_color,
+                        command=lambda: (menu_window.destroy(), command()),
+                        anchor="w", height=30, corner_radius=4, font=ctk.CTkFont(size=13)
+                    )
+                else:
+                    display_text = f"  {icon}  {label}" if icon else f"    {label}"
+                    btn = ctk.CTkButton(
+                        menu_frame, text=display_text, fg_color="transparent",
+                        hover_color=hover_color, text_color=fg_color,
+                        command=lambda: (menu_window.destroy(), command()),
+                        anchor="w", height=30, corner_radius=4, font=ctk.CTkFont(size=13)
+                    )
                 btn.pack(fill="x", padx=4, pady=0)
 
         add_menu_item("启动", self._launch_app, icon="🚀")
         add_menu_item("管理员身份启动", self._launch_as_admin, icon="🔼")
         add_menu_item("", None, is_separator=True)
 
+        move_icon = _render_emoji_image("🔀")
         move_btn = ctk.CTkButton(
             menu_frame,
-            text="  🔀  移动分类            ›",
+            text="  移动分类            ›",
+            image=move_icon,
+            compound="left",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -666,7 +698,7 @@ class AppGridItem(ctk.CTkFrame):
         def set_move_arrow(arrow):
             try:
                 if move_btn.winfo_exists():
-                    move_btn.configure(text=f"  🔀  移动分类            {arrow}")
+                    move_btn.configure(text=f"  移动分类            {arrow}")
             except Exception:
                 pass
 
@@ -774,9 +806,12 @@ class AppGridItem(ctk.CTkFrame):
                 root.after_cancel(root._close_folder_timer)
             root._close_folder_timer = root.after(120, close_folder_submenu)
 
+        folder_icon = _render_emoji_image("📂")
         folder_btn = ctk.CTkButton(
             menu_frame,
-            text="  📂  移动到文件夹        ›",
+            text="  移动到文件夹        ›",
+            image=folder_icon,
+            compound="left",
             fg_color="transparent",
             hover_color=hover_color,
             text_color=fg_color,
@@ -796,7 +831,7 @@ class AppGridItem(ctk.CTkFrame):
         def set_folder_arrow(arrow):
             try:
                 if folder_btn.winfo_exists():
-                    folder_btn.configure(text=f"  📂  移动到文件夹        {arrow}")
+                    folder_btn.configure(text=f"  移动到文件夹        {arrow}")
             except Exception:
                 pass
 
