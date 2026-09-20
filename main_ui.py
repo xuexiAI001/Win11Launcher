@@ -3306,8 +3306,47 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
 # ============================================================
 # 入口
 # ============================================================
+_single_instance_mutex = None
+
+def _is_already_running():
+    """检测是否已有实例运行，如果有则唤起已有窗口并返回True"""
+    import ctypes
+    from ctypes import wintypes
+
+    # 创建命名互斥体
+    global _single_instance_mutex
+    mutex_name = "Win11Launchpad_SingleInstance_v1"
+    kernel32 = ctypes.windll.kernel32
+    _single_instance_mutex = kernel32.CreateMutexW(None, False, mutex_name)
+    last_error = kernel32.GetLastError()
+
+    if last_error == 183:  # ERROR_ALREADY_EXISTS
+        logger.debug("检测到已有实例运行，尝试唤起已有窗口")
+        user32 = ctypes.windll.user32
+        # 通过窗口标题查找已运行的主窗口
+        hwnd = user32.FindWindowW(None, "Win11 Launchpad")
+        if hwnd:
+            # SW_RESTORE = 9
+            user32.ShowWindow(hwnd, 9)
+            user32.SetForegroundWindow(hwnd)
+            # 如果窗口被最小化到托盘，尝试用 SW_SHOW
+            import time
+            time.sleep(0.1)
+            if not user32.IsWindowVisible(hwnd):
+                user32.ShowWindow(hwnd, 5)  # SW_SHOW
+                user32.SetForegroundWindow(hwnd)
+            logger.debug(f"已唤起已有窗口 hwnd={hwnd}")
+        else:
+            logger.debug("未找到已有窗口句柄，直接退出")
+        return True
+    return False
+
+
 def main():
     logger.debug("Starting Win11 Launchpad...")
+    # 单实例检测
+    if _is_already_running():
+        return
     app = LauncherWindow()
     logger.debug("App created, entering mainloop...")
     app.mainloop()
