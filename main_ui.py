@@ -2929,8 +2929,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             new_submenu = tk.Toplevel(self)
             new_submenu.overrideredirect(True)
             new_submenu.attributes("-topmost", True)
-            new_submenu.config(bg="#000001")
-            new_submenu.attributes("-transparentcolor", "#000001")
+            new_submenu.config(bg=bg_color)
             items = [("📁","文件夹","folder"),("📄","文本文档","txt"),("📘","Word 文档","docx"),
                      ("📊","Excel 工作表","xlsx"),("📙","PowerPoint 演示","pptx")]
             ns_x, ns_y = x + 165, y
@@ -2966,9 +2965,13 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             def _leave(e):
                 if hasattr(self,'_new_sub_open_timer') and self._new_sub_open_timer:
                     self.after_cancel(self._new_sub_open_timer); self._new_sub_open_timer=None
-                self._new_sub_close_timer = self.after(120, close_new_submenu)
+                self._new_sub_close_timer = self.after(300, close_new_submenu)
             new_submenu.bind("<Enter>", _enter)
             new_submenu.bind("<Leave>", _leave)
+            # 给所有子控件也绑定Enter，避免透明区域导致事件丢失
+            sf.bind("<Enter>", _enter)
+            for child in sf.winfo_children():
+                child.bind("<Enter>", _enter)
 
         def _btn_enter(e):
             if hasattr(self,'_new_sub_close_timer') and self._new_sub_close_timer:
@@ -2977,7 +2980,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         def _btn_leave(e):
             if hasattr(self,'_new_sub_open_timer') and self._new_sub_open_timer:
                 self.after_cancel(self._new_sub_open_timer); self._new_sub_open_timer=None
-            self._new_sub_close_timer = self.after(120, close_new_submenu)
+            self._new_sub_close_timer = self.after(300, close_new_submenu)
 
         new_icon = _render_emoji_image("➕")
         new_btn = ctk.CTkButton(menu_frame, text="  新建                  ›", image=new_icon, compound="left",
