@@ -2932,7 +2932,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
             new_submenu.config(bg=bg_color)
             items = [("📁","文件夹","folder"),("📄","文本文档","txt"),("📘","Word 文档","docx"),
                      ("📊","Excel 工作表","xlsx"),("📙","PowerPoint 演示","pptx")]
-            ns_x, ns_y = x + 165, y
+            ns_x, ns_y = x + 158, y
             sf = ctk.CTkFrame(new_submenu, fg_color=bg_color, corner_radius=8, border_width=1, border_color=("#E0D8D0","#454545"))
             sf.pack(fill="both", expand=True, padx=0, pady=2)
             for icon, label, ft in items:
@@ -2959,19 +2959,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
                 new_btn.configure(text="  新建                  ⌄")
             except Exception:
                 pass
-            def _enter(e):
-                if hasattr(self,'_new_sub_close_timer') and self._new_sub_close_timer:
-                    self.after_cancel(self._new_sub_close_timer); self._new_sub_close_timer=None
-            def _leave(e):
-                if hasattr(self,'_new_sub_open_timer') and self._new_sub_open_timer:
-                    self.after_cancel(self._new_sub_open_timer); self._new_sub_open_timer=None
-                self._new_sub_close_timer = self.after(300, close_new_submenu)
-            new_submenu.bind("<Enter>", _enter)
-            new_submenu.bind("<Leave>", _leave)
-            # 给所有子控件也绑定Enter，避免透明区域导致事件丢失
-            sf.bind("<Enter>", _enter)
-            for child in sf.winfo_children():
-                child.bind("<Enter>", _enter)
+            # 二级菜单打开后不自动关闭，只在点击外部/选择项/ESC时关闭
 
         def _btn_enter(e):
             if hasattr(self,'_new_sub_close_timer') and self._new_sub_close_timer:
@@ -2980,7 +2968,7 @@ class LauncherWindow(TkinterDnD.Tk if HAS_DND else ctk.CTk):
         def _btn_leave(e):
             if hasattr(self,'_new_sub_open_timer') and self._new_sub_open_timer:
                 self.after_cancel(self._new_sub_open_timer); self._new_sub_open_timer=None
-            self._new_sub_close_timer = self.after(300, close_new_submenu)
+            # 不自动关闭，由点击外部/选择项/ESC负责关闭
 
         new_icon = _render_emoji_image("➕")
         new_btn = ctk.CTkButton(menu_frame, text="  新建                  ›", image=new_icon, compound="left",
