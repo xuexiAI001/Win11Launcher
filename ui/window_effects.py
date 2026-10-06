@@ -33,6 +33,51 @@ def _get_hwnd(widget) -> int:
         return 0
 
 
+def extend_frame_into_client(widget) -> bool:
+    """把整个客户区扩展到 DWM 框架，让 DWM 用亚克力填充整个窗口背景
+
+    这是 Win11 亚克力窗口的标准做法：设置 MARGINS 为 {-1,-1,-1,-1} 后，
+    DWM 接管整个窗口背景绘制，Qt 只需绘制子控件（卡片、标签等）。
+    这样窗口背景就是纯粹的桌面模糊，无任何叠加色。
+
+    Args:
+        widget: Qt 顶层窗口
+
+    Returns:
+        是否成功
+    """
+    if sys.platform != "win32":
+        return False
+
+    try:
+        hwnd = _get_hwnd(widget)
+        if not hwnd:
+            return False
+
+        class MARGINS(ctypes.Structure):
+            _fields_ = [
+                ("cxLeftWidth", ctypes.c_int),
+                ("cxRightWidth", ctypes.c_int),
+                ("cyTopHeight", ctypes.c_int),
+                ("cyBottomHeight", ctypes.c_int),
+            ]
+
+        # -1 表示整个客户区都交给 DWM 绘制
+        margins = MARGINS(-1, -1, -1, -1)
+        dwmapi = ctypes.windll.dwmapi
+        result = dwmapi.DwmExtendFrameIntoClientArea(
+            wintypes.HWND(hwnd), ctypes.byref(margins)
+        )
+        if result == 0:
+            logger.debug("客户区已扩展到 DWM 框架（纯亚克力背景）")
+            return True
+        logger.debug(f"扩展客户区失败，返回码: {result}")
+        return False
+    except Exception as e:
+        logger.debug(f"扩展客户区异常: {e}")
+        return False
+
+
 def apply_acrylic(widget, alpha: float = 0.96) -> bool:
     """应用亚克力磨砂效果 + 窗口透明度
 

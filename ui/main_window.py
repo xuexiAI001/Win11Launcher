@@ -37,10 +37,11 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle(C.WINDOW_TITLE)
         self.setFixedSize(C.WINDOW_WIDTH, C.WINDOW_HEIGHT)
-        # 不绘制系统背景，让 DWM 亚克力磨砂从窗口底层透出
-        # （注意：不能用 WA_TranslucentBackground，那会把窗口变成分层窗口，
-        #   而分层窗口会绕过 DWM 亚克力合成，导致磨砂失效）
-        self.setAttribute(Qt.WA_NoSystemBackground, True)
+        # 纯亚克力背景方案：
+        # WA_TranslucentBackground 让 Qt 不绘制窗口背景，
+        # 配合 DwmExtendFrameIntoClientArea 让 DWM 用亚克力填充整个客户区，
+        # 从而得到纯粹的桌面模糊背景（无叠加色）。
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
         self._center_window()
 
         # 图标
@@ -188,6 +189,7 @@ class MainWindow(QMainWindow):
     def _apply_effects(self):
         """应用亚克力、圆角、标题栏着色"""
         window_effects.apply_acrylic(self, self.config.alpha)
+        window_effects.extend_frame_into_client(self)
         window_effects.set_round_corner(self)
         window_effects.set_titlebar_color(self, self.dark)
 
@@ -203,13 +205,7 @@ class MainWindow(QMainWindow):
             self._title_label.setStyleSheet(f"color: {self._c(C.COLOR_TITLE_TEXT)};")
         # 分类标签
         self._update_tab_styles()
-        # 底部按钮与状态文字
-        if hasattr(self, 'add_btn'):
-            self.add_btn.setStyleSheet(
-                self._btn_style(C.COLOR_BTN_PRIMARY_BG, C.COLOR_BTN_PRIMARY_FG))
-        if hasattr(self, 'settings_btn'):
-            self.settings_btn.setStyleSheet(
-                self._btn_style(C.COLOR_BTN_SECONDARY_BG, C.COLOR_BTN_SECONDARY_FG))
+        # 状态文字
         if hasattr(self, 'status_label'):
             self.status_label.setStyleSheet(f"color: {self._c(C.COLOR_STATUS_TEXT)};")
 
@@ -229,6 +225,7 @@ class MainWindow(QMainWindow):
         # 标题栏颜色 + 亚克力
         window_effects.set_titlebar_color(self, self.dark)
         window_effects.apply_acrylic(self, self.config.alpha)
+        window_effects.extend_frame_into_client(self)
         # WA_NoSystemBackground 下需强制重绘，否则背景色不刷新
         self._central.update()
         self._central.repaint()
@@ -253,20 +250,17 @@ class MainWindow(QMainWindow):
         self._setup_title_bar(layout)
         self._setup_tabs(layout)
         self._setup_grid(layout)
-        self._setup_bottom_bar(layout)
+        self._setup_status_bar(layout)
 
     def _apply_window_bg(self):
-        """应用窗口背景色（半透明，让 DWM 亚克力磨砂透出）
+        """窗口背景完全透明，让 DWM 亚克力填充
 
-        同时确保所有容器控件透明，否则 QScrollArea viewport 等
-        默认白底会盖住亚克力，形成白块。
+        纯亚克力方案下，Qt 不绘制任何窗口背景色，
+        背景完全由 DWM 的扩展框架（亚克力）提供。
+        子控件（卡片、标签栏）各自保持不透明背景。
         """
-        if self.dark:
-            bg = "rgba(31, 31, 31, 0.62)"
-        else:
-            bg = "rgba(243, 243, 243, 0.62)"
         self._central.setStyleSheet(
-            f"#central {{ background-color: {bg}; }}"
+            f"#central {{ background: transparent; }}"
             f"QScrollArea {{ background: transparent; border: none; }}"
             f"QScrollArea > QWidget > QWidget {{ background: transparent; }}"
             f"QScrollArea > QWidget {{ background: transparent; }}"
@@ -404,18 +398,11 @@ class MainWindow(QMainWindow):
         # 拖放支持
         self.setAcceptDrops(True)
 
-    def _setup_bottom_bar(self, parent_layout):
-        """底部按钮栏"""
+    def _setup_status_bar(self, parent_layout):
+        """底部状态栏（仅保留状态提示，按钮已移至右键菜单）"""
         frame = QWidget()
         fl = QHBoxLayout(frame)
         fl.setContentsMargins(16, 0, 16, 8)
-
-        self.add_btn = QPushButton("+ 添加应用")
-        self.add_btn.setFixedSize(120, 32)
-        self.add_btn.setCursor(Qt.PointingHandCursor)
-        self.add_btn.setStyleSheet(self._btn_style(C.COLOR_BTN_PRIMARY_BG, C.COLOR_BTN_PRIMARY_FG))
-        self.add_btn.clicked.connect(self._on_add_app)
-        fl.addWidget(self.add_btn)
 
         fl.addStretch(1)
 
@@ -424,25 +411,7 @@ class MainWindow(QMainWindow):
         self.status_label.setStyleSheet(f"color: {self._c(C.COLOR_STATUS_TEXT)};")
         fl.addWidget(self.status_label)
 
-        self.settings_btn = QPushButton("⚙ 设置")
-        self.settings_btn.setFixedSize(80, 32)
-        self.settings_btn.setCursor(Qt.PointingHandCursor)
-        self.settings_btn.setStyleSheet(self._btn_style(C.COLOR_BTN_SECONDARY_BG, C.COLOR_BTN_SECONDARY_FG))
-        self.settings_btn.clicked.connect(self._open_settings)
-        fl.addWidget(self.settings_btn)
-
         parent_layout.addWidget(frame)
-
-    def _btn_style(self, bg_pair, fg_pair) -> str:
-        """按钮样式"""
-        return (
-            f"QPushButton {{"
-            f" background-color: {self._c(bg_pair)}; color: {self._c(fg_pair)};"
-            f" border: none; border-radius: 8px;"
-            f" font-family: '{C.FONT_FAMILY}'; font-size: 13px;"
-            f"}}"
-            f"QPushButton:hover {{ background-color: {self._c(bg_pair)}; }}"
-        )
 
     # ------------------------------------------------------------
     # 交互
@@ -578,6 +547,7 @@ class MainWindow(QMainWindow):
             "clear_category": self._clear_category,
             "open_location": self._open_file_location,
             "properties": self._show_properties,
+            "settings": self._open_settings,
         }
         if app_data.get("type") == "folder":
             menu = context_menu.build_folder_menu(self, app_data, self.dark, {
@@ -825,6 +795,8 @@ class MainWindow(QMainWindow):
             "new_docx": lambda: self._create_new_file("docx"),
             "new_xlsx": lambda: self._create_new_file("xlsx"),
             "new_pptx": lambda: self._create_new_file("pptx"),
+            "add_app": self._on_add_app,
+            "settings": self._open_settings,
         })
         global_pos = self.sender().mapToGlobal(pos) if self.sender() else self.mapToGlobal(pos)
         menu.exec(global_pos)

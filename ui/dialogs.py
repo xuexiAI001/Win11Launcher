@@ -33,6 +33,7 @@ class SettingsDialog(QDialog):
         self._center()
         self._setup_ui()
         window_effects.apply_acrylic(self, self.config.alpha)
+        window_effects.set_titlebar_color(self, self.dark)
 
     def _c(self, pair) -> str:
         return C.color(pair, self.dark)
@@ -198,6 +199,7 @@ class CategoryManagerDialog(QDialog):
         self._center()
         self._setup_ui()
         window_effects.apply_acrylic(self, self.config.alpha)
+        window_effects.set_titlebar_color(self, self.dark)
 
     def _c(self, pair) -> str:
         return C.color(pair, self.dark)
@@ -341,6 +343,7 @@ class ScannedAppsDialog(QDialog):
 
         self._setup_ui()
         window_effects.apply_acrylic(self, self.config.alpha)
+        window_effects.set_titlebar_color(self, self.dark)
 
     def _c(self, pair) -> str:
         return C.color(pair, self.dark)

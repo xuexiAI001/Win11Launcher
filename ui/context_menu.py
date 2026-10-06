@@ -98,6 +98,8 @@ def build_app_menu(parent, app_data: dict, dark: bool, handlers: dict) -> QMenu:
     menu.addSeparator()
     add("打开文件位置", "open_location")
     add("属性", "properties")
+    menu.addSeparator()
+    add("设置", "settings")
 
     return menu
 
@@ -132,5 +134,15 @@ def build_blank_menu(parent, dark: bool, handlers: dict) -> QMenu:
         act = QAction(label, new_menu)
         act.triggered.connect(lambda checked=False, k=key: handlers[k]())
         new_menu.addAction(act)
+
+    menu.addSeparator()
+    act = QAction("添加应用...", menu)
+    act.triggered.connect(lambda: handlers["add_app"]())
+    menu.addAction(act)
+
+    menu.addSeparator()
+    act = QAction("设置", menu)
+    act.triggered.connect(lambda: handlers["settings"]())
+    menu.addAction(act)
 
     return menu
