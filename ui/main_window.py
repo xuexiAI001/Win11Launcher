@@ -7,13 +7,14 @@
 
 import os
 import sys
+import time
 import ctypes
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QScrollArea, QGridLayout, QFrame, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QAbstractNativeEventFilter
+from PySide6.QtCore import Qt, QTimer, Signal, QAbstractNativeEventFilter, QEvent
 from PySide6.QtGui import QFont, QIcon
 
 from core import constants as C
@@ -27,6 +28,8 @@ logger = get_logger()
 
 # Windows 消息：系统设置变化（含主题切换）
 WM_SETTINGCHANGE = 0x001A
+# 自定义消息：新实例请求唤起已有窗口（WM_APP + 1）
+WM_LAUNCHER_SHOW = 0x8000 + 1
 
 
 class _MSG(ctypes.Structure):
@@ -40,16 +43,16 @@ class _MSG(ctypes.Structure):
 
 
 class _ThemeChangeFilter(QAbstractNativeEventFilter):
-    """监听 Windows 系统主题变化
+    """监听 Windows 原生消息
 
-    系统切换深浅色时会广播 WM_SETTINGCHANGE，消息的 lParam 指向
-    变化的设置项名称（如 "ImmersiveColorSet" 表示主题变化）。
-    捕获后通知主窗口重新解析并应用主题。
+    1. WM_SETTINGCHANGE + "ImmersiveColorSet"：系统主题变化
+    2. WM_LAUNCHER_SHOW：新实例请求唤起已有窗口（单实例唤起）
     """
 
-    def __init__(self, callback):
+    def __init__(self, theme_callback, show_callback):
         super().__init__()
-        self._callback = callback
+        self._theme_callback = theme_callback
+        self._show_callback = show_callback
 
     def nativeEventFilter(self, event_type, message):
         try:
@@ -60,9 +63,11 @@ class _ThemeChangeFilter(QAbstractNativeEventFilter):
                     if lparam:
                         name = ctypes.c_wchar_p(lparam).value or ""
                         if name == "ImmersiveColorSet":
-                            self._callback()
+                            self._theme_callback()
+                elif msg.message == WM_LAUNCHER_SHOW:
+                    self._show_callback()
         except Exception as e:
-            logger.debug(f"主题变化监听异常: {e}")
+            logger.debug(f"原生消息监听异常: {e}")
         return False, 0
 
 
@@ -113,16 +118,37 @@ class MainWindow(QMainWindow):
     # 系统主题监听
     # ------------------------------------------------------------
     def _setup_theme_watcher(self):
-        """监听系统主题变化（仅"跟随系统"时生效）"""
+        """监听系统主题变化 + 单实例唤起请求"""
         if sys.platform != "win32":
             return
         try:
             from PySide6.QtWidgets import QApplication
-            self._theme_filter = _ThemeChangeFilter(self._on_system_theme_changed)
+            self._theme_filter = _ThemeChangeFilter(
+                self._on_system_theme_changed, self._on_show_request
+            )
             QApplication.instance().installNativeEventFilter(self._theme_filter)
             logger.debug("系统主题变化监听已安装")
         except Exception as e:
             logger.debug(f"安装主题监听失败: {e}")
+
+    def _on_show_request(self):
+        """收到新实例的唤起请求（原生事件线程，需投递到主线程）"""
+        # 防抖：同一消息可能被 Qt 投递两次，短时间内只处理一次
+        now = time.monotonic()
+        if now - getattr(self, '_last_show_req', 0) < 0.3:
+            return
+        self._last_show_req = now
+        QTimer.singleShot(0, self._show_from_tray)
+
+    def _show_from_tray(self):
+        """从最小化状态恢复窗口（触发 Windows 原生还原动画）"""
+        if self.isMinimized():
+            self.showNormal()
+        else:
+            self.show()
+        self.raise_()
+        self.activateWindow()
+        logger.debug("已响应唤起请求，显示窗口")
 
     def _on_system_theme_changed(self):
         """系统主题变化回调（原生事件线程，需投递到主线程）"""
@@ -200,6 +226,8 @@ class MainWindow(QMainWindow):
 
     def _force_quit(self):
         """强制退出程序"""
+        # 标记正在退出，避免 close() 再次触发 closeEvent 造成递归
+        self._quitting = True
         try:
             if hasattr(self, 'hotkey_mgr'):
                 self.hotkey_mgr.stop()
@@ -212,6 +240,8 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
         from PySide6.QtWidgets import QApplication
+        # 先关闭窗口，再退出应用，确保进程真正结束
+        self.close()
         QApplication.quit()
 
     # ------------------------------------------------------------
@@ -1021,11 +1051,32 @@ class MainWindow(QMainWindow):
         event.acceptProposedAction()
 
     def closeEvent(self, event):
-        """关闭时：最小化到托盘（若启用），否则退出"""
-        if getattr(self, '_minimize_to_tray', True) and hasattr(self, 'tray') and self.tray.tray is not None:
-            event.ignore()
-            self.hide()
-            logger.debug("窗口已最小化到托盘")
-        else:
-            self._force_quit()
+        """关闭时：最小化到任务栏（若启用），否则退出
+
+        用 showMinimized() 而非 hide()，让窗口真正最小化到任务栏，
+        这样点击任务栏图标恢复时是 Windows 原生动画。
+        """
+        # 正在退出流程中，直接放行
+        if getattr(self, '_quitting', False):
             event.accept()
+            return
+        minimize = getattr(self.config, 'minimize_to_tray', True)
+        logger.debug(f"[CLOSE] minimize={minimize} visible={self.isVisible()}")
+        if minimize:
+            event.ignore()
+            self.showMinimized()
+            logger.debug("窗口已最小化到任务栏")
+        else:
+            event.accept()
+            self._force_quit()
+
+    def changeEvent(self, event):
+        """窗口状态变化：最小化时暂停安装监控，恢复时继续"""
+        super().changeEvent(event)
+        if event.type() == QEvent.WindowStateChange:
+            if not hasattr(self, 'install_monitor'):
+                return
+            if self.isMinimized():
+                self.install_monitor.pause()
+            else:
+                self.install_monitor.resume()

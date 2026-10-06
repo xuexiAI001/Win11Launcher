@@ -89,12 +89,15 @@ class TrayManager:
             self._toggle_window()
 
     def _toggle_window(self):
-        """显示/隐藏主窗口"""
+        """显示/最小化主窗口（用系统原生最小化/还原动画）"""
         w = self.main_window
-        if w.isVisible():
-            w.hide()
+        if w.isVisible() and not w.isMinimized():
+            w.showMinimized()
         else:
-            w.show()
+            if w.isMinimized():
+                w.showNormal()
+            else:
+                w.show()
             w.raise_()
             w.activateWindow()
 

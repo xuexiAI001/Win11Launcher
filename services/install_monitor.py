@@ -68,16 +68,36 @@ class InstallMonitor(QObject):
         self._known: set[str] = set()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._check)
+        self._paused = False
 
     def start(self):
         """启动监控"""
         self._known = self._scan()
         self._timer.start(self.interval_ms)
+        self._paused = False
         logger.debug(f"安装监控已启动，已知 {len(self._known)} 个应用")
 
     def stop(self):
         """停止监控"""
         self._timer.stop()
+
+    def pause(self):
+        """暂停监控（窗口最小化时调用，省 CPU）"""
+        if self._paused:
+            return
+        self._paused = True
+        self._timer.stop()
+        logger.debug("安装监控已暂停")
+
+    def resume(self):
+        """恢复监控（窗口恢复时调用）"""
+        if not self._paused:
+            return
+        self._paused = False
+        # 重新扫描基线，避免暂停期间的新应用被漏掉或误报
+        self._known = self._scan()
+        self._timer.start(self.interval_ms)
+        logger.debug("安装监控已恢复")
 
     def _scan(self) -> set[str]:
         """扫描开始菜单所有 lnk"""
