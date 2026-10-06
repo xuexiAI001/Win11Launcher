@@ -84,6 +84,8 @@ class SettingsDialog(QDialog):
         self.theme_combo.addItems(C.THEME_OPTIONS)
         self.theme_combo.setCurrentText(self.config.theme)
         self.theme_combo.setFixedSize(120, 32)
+        # 调整即生效（预览，不写配置）
+        self.theme_combo.currentTextChanged.connect(self._on_theme_preview)
         row.addWidget(self.theme_combo)
         row.addStretch(1)
         layout.addLayout(row)
@@ -96,9 +98,8 @@ class SettingsDialog(QDialog):
         self.alpha_slider.setValue(int(self.config.alpha * 100))
         self.alpha_slider.setFixedWidth(200)
         self.alpha_label = QLabel(f"{int(self.config.alpha * 100)}%")
-        self.alpha_slider.valueChanged.connect(
-            lambda v: self.alpha_label.setText(f"{v}%")
-        )
+        # 调整即生效（预览，不写配置）
+        self.alpha_slider.valueChanged.connect(self._on_alpha_preview)
         row.addWidget(self.alpha_slider)
         row.addWidget(self.alpha_label)
         row.addStretch(1)
@@ -149,6 +150,15 @@ class SettingsDialog(QDialog):
         row.addWidget(cancel_btn)
         layout.addLayout(row)
 
+    def _on_theme_preview(self, theme: str):
+        """主题下拉框变化：立即预览（不写配置）"""
+        self.main_window.preview_theme(theme)
+
+    def _on_alpha_preview(self, value: int):
+        """透明度滑块变化：立即预览（不写配置）"""
+        self.alpha_label.setText(f"{value}%")
+        self.main_window.preview_alpha(value / 100.0)
+
     def _open_category_manager(self):
         dlg = CategoryManagerDialog(self.main_window)
         self.main_window.register_dialog(dlg)
@@ -179,7 +189,7 @@ class SettingsDialog(QDialog):
             QMessageBox.information(self, "导入成功", "配置已导入，重启后完全生效")
 
     def _save(self):
-        """保存设置"""
+        """保存设置（彻底生效：写入配置文件）"""
         self.config.theme = self.theme_combo.currentText()
         self.config.alpha = self.alpha_slider.value() / 100.0
         self.config.__dict__["hotkey"] = self.hotkey_edit.text().strip()
@@ -188,10 +198,17 @@ class SettingsDialog(QDialog):
         set_autostart(self.autostart_check.isChecked())
 
         self.config.save()
-        # 主题立即生效（窗口背景、标题栏、标签、卡片、弹窗）
+        # 确认预览（丢弃原始主题记录），主题/透明度已即时生效
+        self.main_window.commit_preview_theme()
         self.main_window.apply_theme()
         self.main_window.show_message("设置已保存")
         self.accept()
+
+    def reject(self):
+        """关闭（含取消按钮、X 按钮）：恢复预览前的主题与透明度"""
+        self.main_window.restore_preview_theme()
+        self.main_window.preview_alpha(self.config.alpha)
+        super().reject()
 
 
 class CategoryManagerDialog(QDialog):

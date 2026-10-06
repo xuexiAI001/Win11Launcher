@@ -269,6 +269,32 @@ class MainWindow(QMainWindow):
         window_effects.set_round_corner(self)
         window_effects.set_titlebar_color(self, self.dark)
 
+    def preview_alpha(self, alpha: int):
+        """预览透明度（不写配置）"""
+        window_effects.apply_acrylic(self, alpha)
+
+    def preview_theme(self, theme: str):
+        """预览主题（临时改 config.theme，不写配置）
+
+        首次预览时记录原始主题，供取消时恢复。
+        """
+        if not hasattr(self, '_preview_old_theme'):
+            self._preview_old_theme = self.config.theme
+        self.config.theme = theme
+        self.apply_theme()
+
+    def restore_preview_theme(self):
+        """取消预览：恢复原始主题"""
+        if hasattr(self, '_preview_old_theme'):
+            self.config.theme = self._preview_old_theme
+            del self._preview_old_theme
+            self.apply_theme()
+
+    def commit_preview_theme(self):
+        """确认预览：丢弃记录的原始主题（保留当前值）"""
+        if hasattr(self, '_preview_old_theme'):
+            del self._preview_old_theme
+
     def apply_theme(self):
         """主题切换后立即生效：刷新窗口背景、标题栏、标签、卡片、弹窗"""
         # 重新解析主题（支持"跟随系统"）

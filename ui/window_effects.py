@@ -159,7 +159,12 @@ def set_round_corner(widget) -> None:
 
 
 def set_titlebar_color(widget, dark: bool) -> None:
-    """设置标题栏颜色（浅色/深色）"""
+    """设置标题栏深色模式（不设纯色，让标题栏跟随 DWM 亚克力）
+
+    说明：不设置 DWMWA_CAPTION_COLOR，标题栏就不会被纯色覆盖，
+    而是跟随窗口的亚克力背景（DWMSBT_ACRYLIC），从而与内容区背景一致。
+    仅设置深色模式标记，保证标题栏文字/按钮颜色正确。
+    """
     if sys.platform != "win32":
         return
     try:
@@ -169,24 +174,13 @@ def set_titlebar_color(widget, dark: bool) -> None:
         dwmapi = ctypes.windll.dwmapi
         user32 = ctypes.windll.user32
 
-        # 深色模式
+        # 深色模式（决定标题栏文字/按钮颜色）
         dark_mode = ctypes.c_int(1 if dark else 0)
         dwmapi.DwmSetWindowAttribute(
             wintypes.HWND(hwnd),
             ctypes.c_uint(DWMWA_USE_IMMERSIVE_DARK_MODE),
             ctypes.byref(dark_mode),
             ctypes.sizeof(dark_mode)
-        )
-
-        # 标题栏颜色（BGR 打包）
-        from core import constants as C
-        r, g, b = C.TITLEBAR_RGB[1] if dark else C.TITLEBAR_RGB[0]
-        color = ctypes.c_int((b << 16) | (g << 8) | r)
-        dwmapi.DwmSetWindowAttribute(
-            wintypes.HWND(hwnd),
-            ctypes.c_uint(DWMWA_CAPTION_COLOR),
-            ctypes.byref(color),
-            ctypes.sizeof(color)
         )
 
         # 强制刷新非客户区

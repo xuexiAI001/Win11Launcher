@@ -40,6 +40,8 @@ class AppCard(QWidget):
         self.setFixedSize(C.ITEM_WIDTH, C.ITEM_HEIGHT)
         self.setCursor(Qt.PointingHandCursor)
         self.setAttribute(Qt.WA_Hover, True)
+        # 卡片背景半透明，让底层亚克力轻微透出（轻微模糊透明观感）
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
 
         self._setup_ui()
 
@@ -198,7 +200,10 @@ class AppCard(QWidget):
 
         rect = self.rect().adjusted(2, 2, -2, -2)
 
-        painter.setBrush(QColor(bg))
+        # 半透明背景：让底层亚克力轻微透出，形成轻微模糊透明观感
+        color = QColor(bg)
+        color.setAlpha(C.CARD_BG_ALPHA)
+        painter.setBrush(color)
         if self._hover:
             painter.setPen(QPen(QColor(C.color(C.COLOR_CARD_HOVER_BORDER, self.dark)), 2))
         else:

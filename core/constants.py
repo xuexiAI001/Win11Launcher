@@ -106,6 +106,8 @@ FONT_FOLDER_TITLE_SIZE = 15
 # ============================================================
 CARD_CORNER_RADIUS = 8
 ICON_CORNER_RADIUS = 8
+# 卡片背景不透明度（0-255）：略小于 255，让底层亚克力轻微透出
+CARD_BG_ALPHA = 210
 TAB_WIDTH = 100
 TAB_HEIGHT = 36
 TAB_CORNER_RADIUS = 8
