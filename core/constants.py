@@ -21,7 +21,7 @@ LOG_FILE = os.path.join(APPDATA_DIR, "launcher.log")
 # 窗口
 # ============================================================
 WINDOW_TITLE = "Win11 Launchpad"
-WINDOW_WIDTH = 1120
+WINDOW_WIDTH = 1060
 WINDOW_HEIGHT = 700
 WINDOW_ALPHA_DEFAULT = 0.96
 
