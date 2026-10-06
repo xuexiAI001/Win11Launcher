@@ -74,7 +74,7 @@ class SettingsDialog(QDialog):
 
         # 最小化到托盘
         self.tray_check = QCheckBox("关闭时最小化到托盘")
-        self.tray_check.setChecked(True)
+        self.tray_check.setChecked(getattr(self.config, "minimize_to_tray", True))
         layout.addWidget(self.tray_check)
 
         # 主题
@@ -192,6 +192,7 @@ class SettingsDialog(QDialog):
         """保存设置（彻底生效：写入配置文件）"""
         self.config.theme = self.theme_combo.currentText()
         self.config.alpha = self.alpha_slider.value() / 100.0
+        self.config.minimize_to_tray = self.tray_check.isChecked()
         self.config.__dict__["hotkey"] = self.hotkey_edit.text().strip()
 
         from services.autostart import set_autostart

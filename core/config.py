@@ -24,6 +24,7 @@ class Config:
         self.categories: list[str] = list(DEFAULT_CATEGORIES)
         self.alpha: float = WINDOW_ALPHA_DEFAULT
         self.theme: str = THEME_SYSTEM
+        self.minimize_to_tray: bool = True
         self.current_category: str = self.categories[0]
         self._init_defaults()
 
@@ -64,6 +65,9 @@ class Config:
             if "theme" in data:
                 self.theme = data["theme"]
 
+            if "minimize_to_tray" in data:
+                self.minimize_to_tray = bool(data["minimize_to_tray"])
+
             if self.current_category not in self.categories:
                 self.current_category = self.categories[0]
 
@@ -80,6 +84,7 @@ class Config:
                 "categories": self.categories,
                 "alpha": self.alpha,
                 "theme": self.theme,
+                "minimize_to_tray": self.minimize_to_tray,
             }
             tmp_path = CONFIG_FILE + '.tmp'
             with open(tmp_path, 'w', encoding='utf-8') as f:
@@ -109,6 +114,7 @@ class Config:
                 "categories": self.categories,
                 "alpha": self.alpha,
                 "theme": self.theme,
+                "minimize_to_tray": self.minimize_to_tray,
             }
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -136,6 +142,8 @@ class Config:
                     pass
             if "theme" in data:
                 self.theme = data["theme"]
+            if "minimize_to_tray" in data:
+                self.minimize_to_tray = bool(data["minimize_to_tray"])
             if self.current_category not in self.categories:
                 self.current_category = self.categories[0]
             logger.debug(f"配置已导入: {path}")
