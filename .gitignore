@@ -14,6 +14,13 @@ dist_new/
 
 # 图标缓存（运行时生成）
 icon_cache/
+data/
+
+# 个人配置（含本机应用列表，不上传）
+launcher_config.json
+
+# 开发文档（本地保留，不上传）
+*.docx
 
 # 备份和临时文件
 *.bak
@@ -27,6 +34,7 @@ _final_cleanup.py
 _video_frames/
 _video_frames2/
 _commit_msg.txt
+_probe_*.py
 
 # IDE / 编辑器
 .vscode/
