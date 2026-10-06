@@ -7,6 +7,8 @@ __pycache__/
 # 打包输出
 build/
 dist/
+build_new/
+dist_new/
 *.egg-info/
 
 # 图标缓存（运行时生成）
@@ -21,6 +23,9 @@ _patch_*.py
 _rollback.py
 _verify.py
 _final_cleanup.py
+_video_frames/
+_video_frames2/
+_commit_msg.txt
 
 # IDE / 编辑器
 .vscode/
