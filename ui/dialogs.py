@@ -38,6 +38,13 @@ class SettingsDialog(QDialog):
     def _c(self, pair) -> str:
         return C.color(pair, self.dark)
 
+    def apply_theme(self):
+        """系统主题变化时刷新弹窗外观"""
+        self.dark = self.main_window.dark
+        self.setStyleSheet(C.dialog_qss(self.dark))
+        window_effects.set_titlebar_color(self, self.dark)
+        window_effects.apply_acrylic(self, self.config.alpha)
+
     def _center(self):
         screen = self.screen().availableGeometry()
         self.move((screen.width() - 500) // 2, (screen.height() - 560) // 2)
@@ -144,10 +151,12 @@ class SettingsDialog(QDialog):
 
     def _open_category_manager(self):
         dlg = CategoryManagerDialog(self.main_window)
+        self.main_window.register_dialog(dlg)
         dlg.exec()
 
     def _open_scanned_apps(self):
         dlg = ScannedAppsDialog(self.main_window)
+        self.main_window.register_dialog(dlg)
         dlg.exec()
 
     def _export_config(self):
@@ -203,6 +212,13 @@ class CategoryManagerDialog(QDialog):
 
     def _c(self, pair) -> str:
         return C.color(pair, self.dark)
+
+    def apply_theme(self):
+        """系统主题变化时刷新弹窗外观"""
+        self.dark = self.main_window.dark
+        self.setStyleSheet(C.dialog_qss(self.dark))
+        window_effects.set_titlebar_color(self, self.dark)
+        window_effects.apply_acrylic(self, self.config.alpha)
 
     def _center(self):
         screen = self.screen().availableGeometry()
@@ -348,6 +364,14 @@ class ScannedAppsDialog(QDialog):
     def _c(self, pair) -> str:
         return C.color(pair, self.dark)
 
+    def apply_theme(self):
+        """系统主题变化时刷新弹窗外观（列表行含内联颜色，需重绘）"""
+        self.dark = self.main_window.dark
+        self.setStyleSheet(C.dialog_qss(self.dark))
+        window_effects.set_titlebar_color(self, self.dark)
+        window_effects.apply_acrylic(self, self.config.alpha)
+        self._render_list()
+
     def _center(self):
         screen = self.screen().availableGeometry()
         self.move((screen.width() - 620) // 2, (screen.height() - 600) // 2)
@@ -467,7 +491,7 @@ class ScannedAppsDialog(QDialog):
                     loc_text += f" 等{len(locations)}处"
                 loc_label = QLabel(loc_text)
                 loc_label.setFont(QFont(C.FONT_FAMILY, 9))
-                loc_label.setStyleSheet("color: #107C10;")
+                loc_label.setStyleSheet(f"color: {self._c(C.COLOR_ADDED_MARK)};")
                 rl.addWidget(loc_label)
 
             self.list_layout.addWidget(row)

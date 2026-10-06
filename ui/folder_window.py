@@ -150,7 +150,9 @@ class FolderWindow(QWidget):
         """文件夹内右键：移出文件夹"""
         from PySide6.QtWidgets import QMenu
         from PySide6.QtGui import QAction
+        from ui.context_menu import menu_style
         menu = QMenu(self)
+        menu.setStyleSheet(menu_style(self.dark))
         act = QAction("移出文件夹", menu)
         act.triggered.connect(lambda: self._remove_app(app_data))
         menu.addAction(act)

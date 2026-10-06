@@ -15,8 +15,8 @@ from core.logger import get_logger
 logger = get_logger()
 
 
-def _menu_style(dark: bool) -> str:
-    """菜单样式表"""
+def menu_style(dark: bool) -> str:
+    """菜单样式表（供右键菜单与托盘菜单共用）"""
     bg = C.color(C.COLOR_MENU_BG, dark)
     fg = C.color(C.COLOR_MENU_FG, dark)
     hover = C.color(C.COLOR_MENU_HOVER, dark)
@@ -35,6 +35,10 @@ def _menu_style(dark: bool) -> str:
         f"QMenu::item:selected {{ background-color: {hover}; }}"
         f"QMenu::separator {{ height: 1px; background: {sep}; margin: 3px 12px; }}"
     )
+
+
+# 兼容旧调用名
+_menu_style = menu_style
 
 
 def build_app_menu(parent, app_data: dict, dark: bool, handlers: dict) -> QMenu:

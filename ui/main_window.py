@@ -6,12 +6,14 @@
 """
 
 import os
+import sys
+import ctypes
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QScrollArea, QGridLayout, QFrame, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal, QAbstractNativeEventFilter
 from PySide6.QtGui import QFont, QIcon
 
 from core import constants as C
@@ -22,6 +24,46 @@ from ui.app_card import AppCard
 from services.icon_loader import IconLoader
 
 logger = get_logger()
+
+# Windows 消息：系统设置变化（含主题切换）
+WM_SETTINGCHANGE = 0x001A
+
+
+class _MSG(ctypes.Structure):
+    """Windows MSG 结构（64 位下 hwnd/wParam/lParam 均为 8 字节）"""
+    _fields_ = [
+        ("hwnd", ctypes.c_void_p),
+        ("message", ctypes.c_uint),
+        ("wParam", ctypes.c_void_p),
+        ("lParam", ctypes.c_void_p),
+    ]
+
+
+class _ThemeChangeFilter(QAbstractNativeEventFilter):
+    """监听 Windows 系统主题变化
+
+    系统切换深浅色时会广播 WM_SETTINGCHANGE，消息的 lParam 指向
+    变化的设置项名称（如 "ImmersiveColorSet" 表示主题变化）。
+    捕获后通知主窗口重新解析并应用主题。
+    """
+
+    def __init__(self, callback):
+        super().__init__()
+        self._callback = callback
+
+    def nativeEventFilter(self, event_type, message):
+        try:
+            if event_type == b"windows_generic_MSG":
+                msg = ctypes.cast(int(message), ctypes.POINTER(_MSG)).contents
+                if msg.message == WM_SETTINGCHANGE:
+                    lparam = msg.lParam
+                    if lparam:
+                        name = ctypes.c_wchar_p(lparam).value or ""
+                        if name == "ImmersiveColorSet":
+                            self._callback()
+        except Exception as e:
+            logger.debug(f"主题变化监听异常: {e}")
+        return False, 0
 
 
 class MainWindow(QMainWindow):
@@ -58,11 +100,45 @@ class MainWindow(QMainWindow):
         self._card_cache: dict[str, list[AppCard]] = {}
         # 已打开的文件夹窗口：{key: FolderWindow}
         self._folder_windows: dict[str, object] = {}
+        # 已打开的模态弹窗（设置/分类管理等），主题变化时需同步刷新
+        self._open_dialogs: list = []
 
         self._setup_ui()
         self._apply_effects()
         self._refresh_grid()
         self._setup_system_integration()
+        self._setup_theme_watcher()
+
+    # ------------------------------------------------------------
+    # 系统主题监听
+    # ------------------------------------------------------------
+    def _setup_theme_watcher(self):
+        """监听系统主题变化（仅"跟随系统"时生效）"""
+        if sys.platform != "win32":
+            return
+        try:
+            from PySide6.QtWidgets import QApplication
+            self._theme_filter = _ThemeChangeFilter(self._on_system_theme_changed)
+            QApplication.instance().installNativeEventFilter(self._theme_filter)
+            logger.debug("系统主题变化监听已安装")
+        except Exception as e:
+            logger.debug(f"安装主题监听失败: {e}")
+
+    def _on_system_theme_changed(self):
+        """系统主题变化回调（原生事件线程，需投递到主线程）"""
+        # 仅"跟随系统"时才响应
+        if self.config.theme != C.THEME_SYSTEM:
+            return
+        # 用 QTimer 投递到主线程执行，避免在原生事件回调里操作 UI
+        QTimer.singleShot(0, self._apply_system_theme)
+
+    def _apply_system_theme(self):
+        """重新解析系统主题并应用"""
+        new_dark = self._resolve_dark()
+        if new_dark == self.dark:
+            return
+        logger.debug(f"检测到系统主题变化，切换为{'深色' if new_dark else '浅色'}")
+        self.apply_theme()
 
     # ------------------------------------------------------------
     # 系统集成
@@ -221,6 +297,22 @@ class MainWindow(QMainWindow):
                     win.apply_theme()
             except Exception as e:
                 logger.debug(f"刷新文件夹窗口主题失败: {e}")
+
+        # 已打开的模态弹窗（设置/分类管理/已扫描应用）
+        for dlg in list(self._open_dialogs):
+            try:
+                import shiboken6
+                if shiboken6.isValid(dlg) and hasattr(dlg, 'apply_theme'):
+                    dlg.apply_theme()
+            except Exception as e:
+                logger.debug(f"刷新弹窗主题失败: {e}")
+
+        # 托盘菜单
+        if hasattr(self, 'tray') and self.tray is not None:
+            try:
+                self.tray.apply_theme()
+            except Exception as e:
+                logger.debug(f"刷新托盘菜单主题失败: {e}")
 
         # 标题栏颜色 + 亚克力
         window_effects.set_titlebar_color(self, self.dark)
@@ -771,7 +863,19 @@ class MainWindow(QMainWindow):
         """打开设置面板"""
         from ui.dialogs import SettingsDialog
         dlg = SettingsDialog(self)
+        self.register_dialog(dlg)
         dlg.exec()
+
+    def register_dialog(self, dlg):
+        """登记模态弹窗，主题变化时同步刷新；关闭后自动移除"""
+        self._open_dialogs.append(dlg)
+        dlg.finished.connect(lambda _=0, d=dlg: self._unregister_dialog(d))
+
+    def _unregister_dialog(self, dlg):
+        try:
+            self._open_dialogs.remove(dlg)
+        except ValueError:
+            pass
 
     def show_message(self, text: str, duration_ms: int = 3000):
         """底部状态提示"""

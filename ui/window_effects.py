@@ -179,10 +179,8 @@ def set_titlebar_color(widget, dark: bool) -> None:
         )
 
         # 标题栏颜色（BGR 打包）
-        if dark:
-            r, g, b = 31, 31, 31
-        else:
-            r, g, b = 243, 243, 243
+        from core import constants as C
+        r, g, b = C.TITLEBAR_RGB[1] if dark else C.TITLEBAR_RGB[0]
         color = ctypes.c_int((b << 16) | (g << 8) | r)
         dwmapi.DwmSetWindowAttribute(
             wintypes.HWND(hwnd),

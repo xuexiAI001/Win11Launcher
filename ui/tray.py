@@ -13,6 +13,7 @@ from PySide6.QtGui import QIcon, QAction, QPixmap, QPainter, QColor, QFont
 
 from core import constants as C
 from core.logger import get_logger
+from ui.context_menu import menu_style as _menu_style
 
 logger = get_logger()
 
@@ -61,6 +62,7 @@ class TrayManager:
         self.tray.setToolTip("Win11 启动台")
 
         menu = QMenu()
+        menu.setStyleSheet(_menu_style(self.main_window.dark))
         toggle_action = QAction("显示/隐藏", menu)
         toggle_action.triggered.connect(self._toggle_window)
         menu.addAction(toggle_action)
@@ -72,6 +74,14 @@ class TrayManager:
         self.tray.activated.connect(self._on_activated)
         self.tray.show()
         logger.debug("托盘图标已启动")
+
+    def apply_theme(self):
+        """主题切换后刷新托盘菜单样式"""
+        if self.tray is None:
+            return
+        menu = self.tray.contextMenu()
+        if menu is not None:
+            menu.setStyleSheet(_menu_style(self.main_window.dark))
 
     def _on_activated(self, reason):
         """左键单击托盘图标"""
