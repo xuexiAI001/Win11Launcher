@@ -10,6 +10,7 @@ dist/
 build_new/
 dist_new/
 *.egg-info/
+*.zip
 
 # 图标缓存（运行时生成）
 icon_cache/

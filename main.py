@@ -30,6 +30,23 @@ from core.config import Config
 from ui.main_window import MainWindow
 
 MUTEX_NAME = "Win11Launcher_Qt_SingleInstance_v1"
+APP_USER_MODEL_ID = "Win11Launcher.Launcher.1"
+
+
+def _set_app_user_model_id():
+    """设置 AppUserModelID，让任务栏使用本程序图标而非 Python 图标
+
+    Windows 任务栏按 AppUserModelID 分组并决定显示图标。未设置时，
+    任务栏会使用宿主进程（python.exe）的图标。必须在创建窗口前设置。
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            APP_USER_MODEL_ID
+        )
+    except Exception as e:
+        logger.debug(f"设置 AppUserModelID 失败: {e}")
 
 
 def _is_already_running() -> bool:
@@ -58,6 +75,9 @@ def _is_already_running() -> bool:
 def main():
     if _is_already_running():
         return
+
+    # 必须在创建 QApplication / 窗口前设置，否则任务栏显示 Python 图标
+    _set_app_user_model_id()
 
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough

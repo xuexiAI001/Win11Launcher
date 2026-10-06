@@ -12,6 +12,7 @@ a = Analysis(
     datas=[('assets', 'assets')],
     hiddenimports=[
         'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
+        'numpy',
         'services.icon_extractor', 'services.app_info', 'services.folder_icon',
         'services.icon_loader', 'services.install_monitor', 'services.autostart',
         'services.hotkey', 'ui.window_effects', 'ui.app_card', 'ui.folder_window',
@@ -20,7 +21,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['numpy', 'scipy', 'matplotlib', 'pandas', 'tkinter',
+    excludes=['scipy', 'matplotlib', 'pandas', 'tkinter',
               'PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets',
               'PySide6.Qt3DCore', 'PySide6.QtMultimedia', 'PySide6.QtQuick',
               'PySide6.QtQml', 'PySide6.QtCharts', 'PySide6.QtDataVisualization'],
