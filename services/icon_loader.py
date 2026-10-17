@@ -10,7 +10,7 @@ from PySide6.QtGui import QImage, QPixmap
 
 import threading
 
-from services.icon_extractor import get_app_icon
+from services.platform import get_app_icon
 from services.folder_icon import get_cached_folder_icon
 from core.logger import get_logger
 

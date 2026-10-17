@@ -18,10 +18,12 @@ class AppOpsMixin:
     # ------------------------------------------------------------
     def _launch_app(self, app_data: dict):
         """启动应用"""
+        from services.platform import launch_app, IS_LINUX
         path = app_data.get("path", "")
-        if path and os.path.exists(path):
+        # Linux 下 path 为 Exec 命令（非文件路径），跳过 os.path.exists 检查
+        if path and (IS_LINUX or os.path.exists(path)):
             try:
-                os.startfile(path)
+                launch_app(path)
                 logger.debug(f"启动应用: {path}")
             except Exception as e:
                 logger.warning(f"启动失败 {path}: {e}")
@@ -191,7 +193,7 @@ class AppOpsMixin:
 
     def _on_add_app(self):
         """添加应用（文件选择）"""
-        from services.app_info import get_app_info
+        from services.platform import get_app_info
         paths, _ = QFileDialog.getOpenFileNames(
             self, "选择应用", os.environ.get("PROGRAMFILES", ""),
             "可执行文件 (*.exe *.lnk *.bat *.cmd);;所有文件 (*.*)"

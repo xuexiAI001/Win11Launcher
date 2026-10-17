@@ -23,7 +23,7 @@ class DragDropMixin:
 
     def dropEvent(self, event):
         """处理拖入的文件"""
-        from services.app_info import get_app_info
+        from services.platform import get_app_info
         added, skipped = 0, 0
         for url in event.mimeData().urls():
             path = url.toLocalFile()

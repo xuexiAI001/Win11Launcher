@@ -33,8 +33,8 @@ class SystemIntegrationMixin:
         self.hotkey_mgr.start(hotkey)
 
         # 安装监控
-        from services.install_monitor import InstallMonitor
-        self.install_monitor = InstallMonitor()
+        from services.platform import make_install_monitor
+        self.install_monitor = make_install_monitor()
         self.install_monitor.new_apps_found.connect(self._on_new_apps)
         QTimer.singleShot(3000, self.install_monitor.start)
 
@@ -49,7 +49,7 @@ class SystemIntegrationMixin:
 
     def _on_new_apps(self, paths: list):
         """检测到新安装应用"""
-        from services.app_info import get_app_info
+        from services.platform import get_app_info
         names = [os.path.splitext(os.path.basename(p))[0] for p in paths]
         ret = QMessageBox.question(
             self, "发现新应用",

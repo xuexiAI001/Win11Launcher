@@ -8,7 +8,10 @@
 
 import sys
 import ctypes
-from ctypes import wintypes
+try:
+    from ctypes import wintypes
+except ImportError:  # 非 Windows（如 Linux）无 wintypes；本模块各函数均已带 sys.platform 守卫
+    wintypes = None
 
 from core.logger import get_logger
 

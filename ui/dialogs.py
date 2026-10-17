@@ -107,7 +107,7 @@ class SettingsDialog(QDialog):
 
         # 开机自启
         self.autostart_check = QCheckBox("开机自启动")
-        from services.autostart import is_autostart_enabled
+        from services.platform import autostart_is_enabled as is_autostart_enabled
         self.autostart_check.setChecked(is_autostart_enabled())
         layout.addWidget(self.autostart_check)
 
@@ -195,7 +195,7 @@ class SettingsDialog(QDialog):
         self.config.minimize_to_tray = self.tray_check.isChecked()
         self.config.__dict__["hotkey"] = self.hotkey_edit.text().strip()
 
-        from services.autostart import set_autostart
+        from services.platform import autostart_set as set_autostart
         set_autostart(self.autostart_check.isChecked())
 
         self.config.save()
@@ -395,7 +395,7 @@ class ScannedAppsDialog(QDialog):
         self.move((screen.width() - 620) // 2, (screen.height() - 600) // 2)
 
     def _setup_ui(self):
-        from services.install_monitor import scan_start_menu_names
+        from services.platform import scan_app_names as scan_start_menu_names
 
         # 统一主题样式表
         self.setStyleSheet(C.dialog_qss(self.dark))
@@ -519,8 +519,8 @@ class ScannedAppsDialog(QDialog):
 
     def _load_icons(self):
         """为列表中的应用异步加载图标"""
-        from services.install_monitor import find_lnk_by_name
-        from services.app_info import get_app_info
+        from services.platform import find_app_by_name as find_lnk_by_name
+        from services.platform import get_app_info
 
         theme = "dark" if self.dark else "light"
         for name in self.apps:
@@ -570,8 +570,8 @@ class ScannedAppsDialog(QDialog):
 
     def _batch_add(self):
         """批量添加选中应用到指定分类"""
-        from services.install_monitor import find_lnk_by_name
-        from services.app_info import get_app_info
+        from services.platform import find_app_by_name as find_lnk_by_name
+        from services.platform import get_app_info
 
         selected = self._selected()
         if not selected:

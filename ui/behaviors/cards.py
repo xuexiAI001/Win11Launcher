@@ -19,10 +19,12 @@ class CardActionsMixin:
         if app_data.get("type") == "folder":
             self._open_folder(app_data)
             return
+        from services.platform import launch_app, IS_LINUX
         path = app_data.get("path", "")
-        if path and os.path.exists(path):
+        # Linux 下 path 为 Exec 命令（非文件路径），跳过 os.path.exists 检查
+        if path and (IS_LINUX or os.path.exists(path)):
             try:
-                os.startfile(path)
+                launch_app(path)
                 logger.debug(f"启动应用: {path}")
             except Exception as e:
                 logger.warning(f"启动失败 {path}: {e}")

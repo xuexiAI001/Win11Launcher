@@ -32,7 +32,7 @@ def generate_folder_icon(apps, size=64, theme="light"):
         PIL.Image 对象
     """
     try:
-        from services.icon_extractor import get_app_icon
+        from services.platform import get_app_icon
 
         # 创建画布
         canvas = Image.new('RGBA', (size, size), (0, 0, 0, 0))
