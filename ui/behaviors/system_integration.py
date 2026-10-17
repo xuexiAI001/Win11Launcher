@@ -50,7 +50,15 @@ class SystemIntegrationMixin:
     def _on_new_apps(self, paths: list):
         """检测到新安装应用"""
         from services.platform import get_app_info
-        names = [os.path.splitext(os.path.basename(p))[0] for p in paths]
+        # 先解析出真实信息：Windows 取 .lnk 名，Linux 取 .desktop 的 Name
+        infos = []
+        for p in paths:
+            info = get_app_info(p)
+            if info and info.get("name"):
+                infos.append(info)
+        if not infos:
+            return
+        names = [info["name"] for info in infos]
         ret = QMessageBox.question(
             self, "发现新应用",
             "检测到新安装的应用:\n" + "\n".join(names[:10]) +
@@ -61,8 +69,7 @@ class SystemIntegrationMixin:
         if ret != QMessageBox.Yes:
             return
         added = 0
-        for p in paths:
-            info = get_app_info(p)
+        for info in infos:
             if self.config.add_app(self.config.current_category, info):
                 added += 1
         if added:

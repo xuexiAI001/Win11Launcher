@@ -7,12 +7,14 @@
 
 import os
 
+from core.paths import get_appdata_dir
+
 APP_NAME = "Win11Launcher"
 
 # ============================================================
 # 路径
 # ============================================================
-APPDATA_DIR = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME)
+APPDATA_DIR = get_appdata_dir()
 CONFIG_FILE = os.path.join(APPDATA_DIR, "launcher_config.json")
 ICON_CACHE_DIR = os.path.join(APPDATA_DIR, "icon_cache")
 LOG_FILE = os.path.join(APPDATA_DIR, "launcher.log")

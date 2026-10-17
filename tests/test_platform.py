@@ -157,13 +157,29 @@ def test_get_app_icon_loads_png(tmp_path, monkeypatch):
     assert img is not None and img.size == (48, 48)
 
 
-def test_get_app_icon_svg_returns_none(tmp_path, monkeypatch):
+def test_get_app_icon_svg_renders(tmp_path, monkeypatch):
+    """SVG 经 Qt 渲染为 PIL Image（Linux 应用图标主流格式，必须可用）"""
     root = tmp_path / "icons"
     (root / "hicolor" / "48x48" / "apps").mkdir(parents=True)
-    (root / "hicolor" / "48x48" / "apps" / "vec.svg").write_text("<svg/>", encoding="utf-8")
+    (root / "hicolor" / "48x48" / "apps" / "vec.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">'
+        '<rect width="64" height="64" fill="#0078d4"/></svg>', encoding="utf-8")
     monkeypatch.setattr("services.platform.linux_icons.DEFAULT_ICON_ROOTS", [str(root)])
     monkeypatch.delenv("XDG_DATA_DIRS", raising=False)
-    assert get_app_icon("", icon_path="vec", size=48) is None
+    img = get_app_icon("", icon_path="vec", size=48)
+    assert img is not None and img.size == (48, 48)
+    r, g, b, a = img.getpixel((24, 24))
+    assert (r, g, b) == (0, 120, 212) and a == 255
+
+
+def test_get_app_icon_invalid_svg_returns_none(tmp_path, monkeypatch):
+    """损坏的 SVG 不能炸线程，安静返回 None"""
+    root = tmp_path / "icons"
+    (root / "hicolor" / "48x48" / "apps").mkdir(parents=True)
+    (root / "hicolor" / "48x48" / "apps" / "bad.svg").write_text("<svg/>", encoding="utf-8")
+    monkeypatch.setattr("services.platform.linux_icons.DEFAULT_ICON_ROOTS", [str(root)])
+    monkeypatch.delenv("XDG_DATA_DIRS", raising=False)
+    assert get_app_icon("", icon_path="bad", size=48) is None
 
 
 # ---------- Linux: XDG 自启动 ----------
@@ -188,3 +204,38 @@ def test_linux_launch_app_tolerates_bad_input():
     from services.platform import _linux
     _linux.launch_app("")                       # 空命令：直接返回
     _linux.launch_app("/nonexistent/bin %U")    # 不存在：内部捕获，不向外抛
+
+
+# ---------- Linux: 导入链自包含（麒麟离线拷贝场景的根基） ----------
+
+def test_linux_backend_import_chain_is_self_contained():
+    """Linux 后端整条导入链不触碰任何 Windows 专有模块（wintypes/winreg/win32com）"""
+    import importlib
+    for mod in ("services.platform._linux",
+                "services.platform.linux_apps",
+                "services.platform.linux_icons",
+                "services.platform.linux_autostart"):
+        importlib.import_module(mod)
+
+
+def test_facade_dispatches_to_linux_backend():
+    """模拟 sys.platform=linux，门面必须分发到 Linux 后端且导入不炸"""
+    import os
+    import subprocess
+    import textwrap
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    code = textwrap.dedent("""
+        import sys
+        sys.platform = "linux"
+        import services.platform as p
+        assert p.IS_LINUX and not p.IS_WINDOWS
+        assert p.get_app_info is not None and callable(p.launch_app)
+        assert p.make_install_monitor is not None
+        import services.platform.linux_apps as la
+        assert p.get_app_info is la.parse_desktop_file
+        print("OK")
+    """)
+    r = subprocess.run([sys.executable, "-c", code],
+                       capture_output=True, text=True, cwd=root)
+    assert r.returncode == 0, r.stderr
+    assert "OK" in r.stdout

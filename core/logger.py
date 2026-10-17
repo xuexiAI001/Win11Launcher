@@ -9,8 +9,10 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 
+from core.paths import get_appdata_dir
+
 APP_NAME = "Win11Launcher"
-LOG_DIR = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME)
+LOG_DIR = get_appdata_dir()
 LOG_FILE = os.path.join(LOG_DIR, 'launcher.log')
 
 _logger = None
