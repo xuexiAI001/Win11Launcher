@@ -3,13 +3,20 @@
 import os
 import sys
 
-PY = r'C:\Users\59260\AppData\Local\Programs\Python\Python314'
+# 使用当前运行 pyinstaller 的解释器，不再硬编码绝对路径，
+# 这样换机器 / CI 也能正常构建。可用以下任一方式运行：
+#   pyinstaller Win11LauncherQt.spec
+#   python -m PyInstaller Win11LauncherQt.spec
+# 注意：spec 命名空间里 __file__ 在 `python -m PyInstaller` 下可能未定义，
+# 因此项目根统一用 PyInstaller 保证提供的 SPECPATH 取得。
+PY = sys.executable
+PROJECT_ROOT = SPECPATH
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
+    pathex=[PROJECT_ROOT],
     binaries=[],
-    datas=[('assets', 'assets')],
+    datas=[(os.path.join(PROJECT_ROOT, 'assets'), 'assets')],
     hiddenimports=[
         'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
         'numpy',

@@ -1,0 +1,4 @@
+# 开发 / 测试 / 构建依赖（运行本仓库测试与 PyInstaller 打包用）
+pytest>=7.0
+pyinstaller>=6.0
+
