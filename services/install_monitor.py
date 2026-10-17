@@ -5,6 +5,8 @@
 依赖：core.logger
 """
 
+from __future__ import annotations
+
 import os
 import ctypes
 from ctypes import wintypes

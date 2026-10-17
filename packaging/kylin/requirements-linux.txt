@@ -1,0 +1,36 @@
+# ============================================================
+# Win11Launcher 麒麟（Linux）依赖完整闭包
+# ------------------------------------------------------------
+# 配合 `pip install --no-index --find-links=<wheelhouse> --no-deps -r 本文件`
+# 离线安装。这里显式列出全部传递依赖（含 --no-deps 也装得全），
+# 因为麒麟机器离线，无法在装到一半时回头补依赖。
+#
+# 版本锁定依据（银河麒麟 V10 桌面版官方白皮书数据）：
+#   - 系统 Python：3.8.10 / 3.8.2          → 全部轮子须支持 cp38
+#   - glibc：2.31（x86_64 / ARM64 主流平台）→ x86_64 用 manylinux_2_28 轮子
+#            2.28（仅龙芯 3A5000/3A6000、SW831，均为 LoongArch64）
+#   - ARM64（飞腾 FT-2000+/4、鲲鹏 920）glibc 2.31 → aarch64 用 manylinux_2_31 轮子
+#
+# 为什么锁 PySide6 6.6.3.1（而不是开发机的 6.11.2）：
+#   6.11.2 的 Linux 轮子是 manylinux_2_34(x86_64) / manylinux_2_39(aarch64)，
+#   麒麟 glibc 只有 2.31/2.28，装不上；6.7+ 起仅 cp39（不支持 Python 3.8）；
+#   6.6.3.1 是同时满足 cp38 + manylinux_2_28(x86_64)/manylinux_2_31(aarch64)
+#   的最新版本。应用代码只用到长期稳定的 Qt API，两个版本行为一致。
+# ============================================================
+
+# —— 运行时依赖 ——
+PySide6-Essentials==6.6.3.1     # Qt6 运行时（含 QtCore/QtGui/QtWidgets/QtSvg/QtNetwork）
+shiboken6==6.6.3.1              # PySide6 的绑定层依赖，版本必须严格一致
+Pillow==10.4.0                  # 图标渲染（SVG→位图、白色背景透明化）；最后支持 py38 的版本
+pynput==1.7.6                   # 全局快捷键（X11 后端）
+six==1.17.0                     # pynput 依赖
+python-xlib==0.33               # pynput 的 X11 后端依赖（evdev 无预编译轮子，X11 路径用不到）
+
+# —— 构建期依赖（PyInstaller 离线打包用）——
+pyinstaller==6.11.1
+pyinstaller-hooks-contrib==2024.10
+altgraph==0.17.4                # pyinstaller 依赖
+packaging==24.2                 # pyinstaller 依赖
+setuptools==75.3.2              # pyinstaller 依赖；最后支持 py38 的版本
+importlib-metadata==8.5.0       # pyinstaller 在 Python < 3.10 时的依赖
+zipp==3.20.2                    # importlib-metadata 的依赖

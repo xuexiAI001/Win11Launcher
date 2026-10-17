@@ -5,6 +5,8 @@
 依赖：core.constants, core.logger, services.icon_loader
 """
 
+from __future__ import annotations
+
 import os
 
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout

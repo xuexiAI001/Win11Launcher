@@ -27,6 +27,7 @@
 ## 系统要求
 
 - **操作系统**：Windows 11（Windows 10 亦可运行，但亚克力效果可能不完整）
+- **Linux**：银河麒麟 V10 桌面版（UKUI，x86_64 / ARM64），详见 [麒麟离线打包说明](packaging/kylin/README.md)
 - **运行环境**：绿色免安装版无需安装 Python，解压即用
 
 ---
@@ -53,6 +54,21 @@ pip install -r requirements.txt
 
 # 3. 运行
 python main.py
+```
+
+### 方式三：银河麒麟 V10（Linux）
+
+麒麟桌面版为**离线打包**形态（不依赖系统 Python），完整流程见
+[`packaging/kylin/README.md`](packaging/kylin/README.md)：
+
+```bash
+# 联网机器（Windows 即可）下载 wheelhouse
+python packaging/kylin/prepare_wheelhouse.py
+
+# 拷贝到麒麟机器后一键构建 + 打 deb
+bash packaging/kylin/build_on_kylin.sh
+bash packaging/kylin/make_deb.sh
+sudo dpkg -i packaging/kylin/win11launcher_*.deb
 ```
 
 ---
@@ -91,6 +107,7 @@ python main.py
 - **关闭时最小化到任务栏**（取消勾选则关闭即退出）
 - **主题颜色**：浅色 / 深色 / 跟随系统（调整即时生效）
 - **窗口透明度**：50% ~ 100%（调整即时生效）
+- **界面缩放**：80% ~ 160%（调整即时预览，保存后下次启动生效；也可随时 `Ctrl+滚轮` 缩放）
 - **开机自启动**
 - **管理分类**：增删分类
 - **导出 / 导入配置**
@@ -105,6 +122,8 @@ python main.py
 | 快捷键 | 功能 |
 |--------|------|
 | `Ctrl+Shift+L` | 呼出 / 隐藏主窗口（可在设置中修改） |
+| `Ctrl+滚轮` | 整体界面缩放（80% ~ 160%） |
+| `F11` / `Esc` | 全屏 / 退出全屏（Linux 版另提供标题栏最大化、全屏按钮） |
 
 ---
 
@@ -113,13 +132,14 @@ python main.py
 所有配置与缓存保存在：
 
 ```
-%APPDATA%\Win11Launcher\
+Windows：  %APPDATA%\Win11Launcher\
+Linux：    ~/.config/Win11Launcher/        （XDG 规范，麒麟 UKUI 同样适用）
 ├── launcher_config.json   # 应用列表、分类、主题、透明度等配置
 ├── launcher.log           # 运行日志（排查问题用）
 └── icon_cache\            # 图标缓存
 ```
 
-> 卸载时删除该目录即可彻底清除配置。
+> 卸载时删除该目录即可彻底清除配置（Windows 与 Linux 配置互不相同，不互通）。
 
 ---
 
@@ -141,11 +161,13 @@ A：删除程序目录，并删除 `%APPDATA%\Win11Launcher\` 配置目录即可
 
 ## 技术栈
 
-- **语言**：Python 3.14
-- **GUI**：PySide6 6.11（Qt 6）
-- **图标提取**：pywin32 / ctypes（SHGetImageList、ExtractIconExW 等）
-- **图像处理**：Pillow + numpy
-- **打包**：PyInstaller
+- **语言**：Python 3.8+（开发机 3.14；麒麟机器为 3.8.10，源码按 3.8 兼容）
+- **GUI**：PySide6 6.11（Qt 6）；麒麟离线包锁 6.6.3.1（最后一个支持 py38 + glibc 2.28/2.31 的版本）
+- **平台适配**：`services/platform/` 门面按 `sys.platform` 分流——Windows 委托原有实现（行为不变），
+  Linux 走 `.desktop` 应用发现 / 图标主题解析 / SVG 渲染 / QLocalServer 单实例 / XDG 自启动
+- **图标提取**：pywin32 / ctypes（SHGetImageList、ExtractIconExW 等，Windows）；图标主题 + QSvgRenderer（Linux）
+- **图像处理**：Pillow + numpy（numpy 仅 Windows 图标链路使用）
+- **打包**：PyInstaller（Windows 见 `Win11LauncherQt.spec`；麒麟见 `packaging/kylin/`）
 
 ### 项目结构
 
@@ -153,16 +175,19 @@ A：删除程序目录，并删除 `%APPDATA%\Win11Launcher\` 配置目录即可
 Win11Launcher/
 ├── main.py              # 程序入口
 ├── core/                # 核心层（无 UI 依赖）
-│   ├── constants.py     # 全局常量、配色表
+│   ├── constants.py     # 全局常量、配色表、缩放基准值
+│   ├── paths.py         # 跨平台数据目录（Windows %APPDATA% / Linux XDG）
 │   ├── config.py        # 配置加载/保存/导入导出
 │   └── logger.py        # 日志系统
 ├── services/            # 服务层（无 UI 依赖）
-│   ├── icon_extractor.py    # 图标提取（多级回退）
+│   ├── platform/        # 平台适配门面（_win / _linux 后端 + linux_* 子模块）
+│   ├── icon_extractor.py    # 图标提取（多级回退，Windows）
 │   ├── icon_loader.py       # 异步图标加载
 │   ├── folder_icon.py       # 文件夹图标合成
-│   ├── app_info.py          # 应用信息解析
-│   ├── install_monitor.py   # 安装监控 / 开始菜单扫描
-│   ├── autostart.py         # 开机自启
+│   ├── app_info.py          # 应用信息解析（Windows）
+│   ├── install_monitor.py   # 安装监控 / 开始菜单扫描（Windows）
+│   ├── autostart.py         # 开机自启（Windows）
+│   ├── single_instance.py   # Linux 单实例（QLocalServer）
 │   └── hotkey.py            # 全局快捷键
 ├── ui/                  # 界面层
 │   ├── main_window.py   # 主窗口
@@ -171,9 +196,12 @@ Win11Launcher/
 │   ├── dialogs.py       # 设置 / 分类管理 / 已扫描应用弹窗
 │   ├── context_menu.py  # 右键菜单
 │   ├── tray.py          # 系统托盘
-│   └── window_effects.py# 亚克力 / 圆角 / 标题栏特效
+│   ├── window_effects.py# 亚克力 / 圆角 / 标题栏特效
+│   └── behaviors/       # 主窗口行为 Mixin（主题/网格/缩放/拖放等）
+├── packaging/kylin/     # 银河麒麟离线构建套件（deb）
 └── assets/
-    └── app.ico          # 程序图标
+    ├── app.ico          # 程序图标（Windows）
+    └── app.png          # 程序图标（Linux / deb）
 ```
 
 ---

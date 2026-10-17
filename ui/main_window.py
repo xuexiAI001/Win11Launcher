@@ -12,6 +12,8 @@
     构造方式 `MainWindow(config)` 与方法名保持不变，对外部调用方透明。
 """
 
+from __future__ import annotations
+
 import os
 import sys
 

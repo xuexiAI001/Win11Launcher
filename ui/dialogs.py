@@ -5,6 +5,8 @@
 依赖：core.constants, core.logger, ui.window_effects
 """
 
+from __future__ import annotations
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
     QComboBox, QSlider, QCheckBox, QScrollArea, QWidget, QMessageBox,

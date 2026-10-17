@@ -12,6 +12,14 @@ dist_new/
 *.egg-info/
 *.zip
 
+# 麒麟离线构建产物（packaging/kylin/README.md）
+dist-linux/
+build-linux-work/
+build/deb/
+packaging/kylin/wheelhouse/
+packaging/kylin/.venv-build/
+packaging/kylin/*.deb
+
 # 图标缓存（运行时生成）
 icon_cache/
 data/

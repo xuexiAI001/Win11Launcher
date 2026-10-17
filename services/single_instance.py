@@ -5,6 +5,8 @@ Linux（麒麟）无 Win32 互斥体，改用 Qt 内置的 QLocalServer（Unix �
 零额外依赖，适合离线环境。第二个实例启动时向已有实例发送唤起请求后退出。
 """
 
+from __future__ import annotations
+
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 

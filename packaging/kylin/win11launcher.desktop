@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Win11Launcher
+Name[zh_CN]=Win11 启动台
+GenericName=软件启动台
+GenericName[zh_CN]=软件启动台
+Comment=Windows 11 风格的软件启动台
+Comment[zh_CN]=Windows 11 风格的软件启动台
+Exec=/opt/win11launcher/Win11Launcher
+Icon=win11launcher
+Terminal=false
+Categories=Utility;System;FileTools;
+Keywords=launcher;start;启动台;启动器;应用;程序;
+StartupNotify=true
+StartupWMClass=Win11Launcher

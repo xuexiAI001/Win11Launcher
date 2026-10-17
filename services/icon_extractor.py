@@ -10,10 +10,12 @@ import ctypes
 from ctypes import wintypes
 from PIL import Image
 
+from core.paths import get_appdata_dir
+
 logger = logging.getLogger("Win11Launcher")
 
 APP_NAME = "Win11Launcher"
-ICON_CACHE_DIR = os.path.join(os.environ.get('APPDATA', '.'), APP_NAME, "icon_cache")
+ICON_CACHE_DIR = os.path.join(get_appdata_dir(), "icon_cache")
 
 # Windows API 常量
 LR_LOADFROMFILE = 0x00000010
