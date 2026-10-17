@@ -52,6 +52,9 @@ python packaging/kylin/prepare_wheelhouse.py
 - 确定目标机器架构后可只下一个，体积减半：
   `python packaging/kylin/prepare_wheelhouse.py --arch x86_64`
   （兆芯/海光/Intel/AMD 选 x86_64；飞腾/鲲鹏选 aarch64）；
+- 国内网络直连 pypi.org 可能很慢（大轮子仅十几 KB/s），建议换镜像源：
+  `python packaging/kylin/prepare_wheelhouse.py --index-url https://mirrors.aliyun.com/pypi/simple`
+  （阿里云 / 腾讯云 / 华为云 / USTC 均可；**清华 TUNA 镜像会拦截 pip 客户端返回 403，不要使用**）；
 - 产物：`packaging/kylin/wheelhouse/<arch>/*.whl`（该目录不入 git，用 U 盘/内网拷贝）。
 
 ### 第 2 步：拷贝到麒麟机器并构建

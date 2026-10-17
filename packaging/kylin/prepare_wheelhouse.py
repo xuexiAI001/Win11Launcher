@@ -11,6 +11,12 @@
     python packaging/kylin/prepare_wheelhouse.py --arch x86_64    # 只下载本机对应架构（体积减半）
     python packaging/kylin/prepare_wheelhouse.py --arch aarch64   # 飞腾 / 鲲鹏
 
+国内网络直连 pypi.org 可能很慢（大轮子仅十几 KB/s），可改用镜像，例如：
+    python packaging/kylin/prepare_wheelhouse.py \
+        --index-url https://mirrors.aliyun.com/pypi/simple
+（阿里云 / 腾讯云 / 华为云 / USTC 镜像均可；
+ 注意：清华 TUNA 镜像会拦截 pip 客户端（返回 403），不要使用）
+
 产物：packaging/kylin/wheelhouse/<arch>/*.whl（约 150 MB / 架构）
 
 说明：
@@ -40,7 +46,8 @@ ARCH_PLATFORMS = {
 }
 
 
-def download_arch(arch: str, py_version: str, reqs: Path, out_root: Path) -> bool:
+def download_arch(arch: str, py_version: str, reqs: Path, out_root: Path,
+                  index_url: str) -> bool:
     platforms = ARCH_PLATFORMS[arch]
     out_dir = out_root / arch
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -51,6 +58,7 @@ def download_arch(arch: str, py_version: str, reqs: Path, out_root: Path) -> boo
         "--no-deps",                     # requirements-linux.txt 已是完整闭包
         "--only-binary=:all:",           # 离线机器无法编译 sdist，只要 wheel
         "--python-version", py_version,
+        "--index-url", index_url,
     ]
     for p in platforms:
         cmd += ["--platform", p]
@@ -100,6 +108,12 @@ def main() -> int:
         default=SCRIPT_DIR / "wheelhouse",
         help="wheelhouse 输出根目录，默认 packaging/kylin/wheelhouse",
     )
+    parser.add_argument(
+        "--index-url",
+        default="https://pypi.org/simple",
+        help="pip 索引源，默认官方 PyPI。国内慢速网络可用阿里云镜像："
+             "https://mirrors.aliyun.com/pypi/simple",
+    )
     args = parser.parse_args()
 
     if not args.reqs.is_file():
@@ -109,7 +123,8 @@ def main() -> int:
     arches = ["x86_64", "aarch64"] if args.arch == "both" else [args.arch]
     ok = True
     for arch in arches:
-        ok = download_arch(arch, args.python_version, args.reqs, args.out) and ok
+        ok = download_arch(arch, args.python_version, args.reqs, args.out,
+                           args.index_url) and ok
 
     if not ok:
         return 1
