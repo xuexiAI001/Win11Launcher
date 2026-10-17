@@ -1,0 +1,55 @@
+# -*- mode: yaml; coding: utf-8 -*-
+# Win11Launcher CI：每次 push / PR 自动跑测试 + PyInstaller 打包验证
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    # 无显示环境跑 PySide6 测试需要 offscreen 平台插件
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_LOGGING_RULES: "*.debug=false"
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: 升级 pip 并安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: 运行测试
+        run: python -m pytest tests/ -q
+
+      - name: PyInstaller 打包验证（确认换机器也能构建）
+        run: pyinstaller Win11LauncherQt.spec --noconfirm
+
+      - name: 校验产物 exe 已生成
+        shell: bash
+        run: |
+          if ls dist/Win11Launcher/Win11Launcher.exe 1>/dev/null 2>&1; then
+            echo "✅ 打包成功，产物: dist/Win11Launcher/Win11Launcher.exe"
+            ls -lh dist/Win11Launcher/Win11Launcher.exe
+          else
+            echo "❌ 未找到 dist/Win11Launcher/Win11Launcher.exe，打包失败"
+            exit 1
+          fi
+
+      - name: 上传构建产物（可下载试用）
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Win11Launcher-build
+          path: dist/Win11Launcher
+          if-no-files-found: error
