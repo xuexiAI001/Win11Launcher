@@ -66,7 +66,7 @@ class AppCard(QWidget):
         self.name_label = QLabel()
         self.name_label.setAlignment(Qt.AlignCenter)
         self.name_label.setWordWrap(True)
-        self.name_label.setFixedWidth(90)
+        self.name_label.setFixedWidth(C.CARD_NAME_MAX_WIDTH)
         self.name_label.setStyleSheet(
             f"color: {C.color(C.COLOR_CARD_NAME, self.dark)}; background: transparent;"
         )
@@ -88,20 +88,22 @@ class AppCard(QWidget):
 
         # 先按最大字号算出实际行数，再按行数分档：
         # 单行/两行字号略小，三行保持原字号
-        lines = self._count_lines(text, max_width=90, size=C.FONT_CARD_NAME_BASE)
+        lines = self._count_lines(text, max_width=C.CARD_NAME_MAX_WIDTH, size=C.FONT_CARD_NAME_BASE)
         if lines >= 3:
             base = C.FONT_CARD_NAME_BASE
         else:
             base = C.FONT_CARD_NAME_BASE - 1
-        size = self._fit_font_size(text, max_width=90, max_lines=max_lines,
+        size = self._fit_font_size(text, max_width=C.CARD_NAME_MAX_WIDTH, max_lines=max_lines,
                                    base_size=base)
         font = QFont(C.FONT_FAMILY, size)
         self.name_label.setFont(font)
         self.name_label.setText(text)
 
     @staticmethod
-    def _count_lines(text: str, max_width: int = 90, size: int = 11) -> int:
-        """按指定字号计算文本换行后的行数"""
+    def _count_lines(text: str, max_width: int = None, size: int = 11) -> int:
+        """按指定字号计算文本换行后的行数（max_width 缺省取当前缩放的卡片名宽度）"""
+        if max_width is None:
+            max_width = C.CARD_NAME_MAX_WIDTH
         fm = QFontMetrics(QFont(C.FONT_FAMILY, size))
         lines = 0
         for seg in text.split("\n"):
@@ -120,10 +122,12 @@ class AppCard(QWidget):
         return lines
 
     @staticmethod
-    def _fit_font_size(text: str, max_width: int = 90, max_lines: int = 3,
+    def _fit_font_size(text: str, max_width: int = None, max_lines: int = 3,
                        base_size: int = C.FONT_CARD_NAME_BASE,
                        min_size: int = C.FONT_CARD_NAME_MIN) -> int:
-        """计算能放下文本的最大字号"""
+        """计算能放下文本的最大字号（max_width 缺省取当前缩放的卡片名宽度）"""
+        if max_width is None:
+            max_width = C.CARD_NAME_MAX_WIDTH
         for size in range(base_size, min_size - 1, -1):
             fm = QFontMetrics(QFont(C.FONT_FAMILY, size))
             lines = 0

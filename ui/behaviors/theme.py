@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """主题应用 Mixin：解析/预览/应用主题与窗口特效"""
+import sys
+
 from core import constants as C
 from core.logger import get_logger
 from ui import window_effects
+from services.platform import IS_LINUX
 
 logger = get_logger()
 
@@ -21,6 +24,8 @@ class ThemeApplyMixin:
         if theme == C.THEME_LIGHT:
             return False
         # 跟随系统
+        if IS_LINUX:
+            return self._system_prefers_dark_linux()
         try:
             import winreg
             key = winreg.OpenKey(
@@ -30,6 +35,24 @@ class ThemeApplyMixin:
             value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
             winreg.CloseKey(key)
             return value == 0
+        except Exception:
+            return False
+
+    @staticmethod
+    def _system_prefers_dark_linux() -> bool:
+        """Linux（麒麟 UKUI 等）下经 Qt 调色板判断系统深浅色。
+
+        Qt 在 Linux 上跟随桌面平台主题的配色方案；取 Window 角色背景色
+        明暗度作为判据，无需 DBus 或额外依赖。
+        """
+        try:
+            from PySide6.QtWidgets import QApplication
+            from PySide6.QtGui import QPalette
+            app = QApplication.instance()
+            if app is None:
+                return False
+            color = app.palette().color(QPalette.ColorRole.Window)
+            return color.lightness() < 128
         except Exception:
             return False
 

@@ -60,6 +60,11 @@ def test_mainwindow_construction_and_key_paths():
         # theme
         "_resolve_dark", "_c", "_apply_effects", "preview_alpha", "preview_theme",
         "restore_preview_theme", "commit_preview_theme", "apply_theme",
+        # zoom
+        "_setup_zoom", "adjust_zoom", "set_zoom", "_rebuild_for_zoom",
+        "toggle_maximize", "toggle_fullscreen", "_update_window_buttons",
+        # grid 缩放联动
+        "_effective_columns",
     ]
     missing = [m for m in expected if not hasattr(win, m)]
     assert not missing, f"缺失方法: {missing}"

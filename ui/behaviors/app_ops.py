@@ -32,7 +32,11 @@ class AppOpsMixin:
             self.show_message(f"文件不存在: {app_data.get('name')}")
 
     def _launch_as_admin(self, app_data: dict):
-        """管理员身份启动"""
+        """管理员身份启动（Windows 专有；Linux 无等价提权入口）"""
+        from services.platform import IS_LINUX
+        if IS_LINUX:
+            self.show_message("当前系统不支持管理员身份启动")
+            return
         path = app_data.get("path", "")
         if not path:
             return
@@ -137,8 +141,12 @@ class AppOpsMixin:
 
     def _open_file_location(self, app_data: dict):
         """打开文件位置"""
+        from services.platform import IS_LINUX
         path = app_data.get("path", "")
         if not path:
+            return
+        if IS_LINUX:
+            self._open_file_location_linux(path)
             return
         try:
             if os.path.isdir(path):
@@ -149,10 +157,37 @@ class AppOpsMixin:
         except Exception as e:
             logger.warning(f"打开位置失败: {e}")
 
+    def _open_file_location_linux(self, cmd: str):
+        """Linux 打开文件位置：定位 Exec 命令的真实路径并打开所在目录"""
+        import shlex
+        import shutil
+        import subprocess
+        try:
+            argv = shlex.split(cmd)
+            exe = argv[0] if argv else ""
+            target = None
+            if exe and os.path.isfile(exe):
+                target = os.path.dirname(exe)
+            elif exe:
+                real = shutil.which(exe)
+                if real:
+                    target = os.path.dirname(real)
+            if not target:
+                # 回退：打开 .desktop 文件所在目录
+                target = "/usr/share/applications"
+            subprocess.Popen(["xdg-open", target], start_new_session=True)
+        except Exception as e:
+            logger.warning(f"打开位置失败: {e}")
+            self.show_message("打开位置失败")
+
     def _show_properties(self, app_data: dict):
-        """显示属性"""
+        """显示属性（Windows 资源管理器属性页；Linux 展示应用路径）"""
+        from services.platform import IS_LINUX
         path = app_data.get("path", "")
         if not path:
+            return
+        if IS_LINUX:
+            self.show_message(f"应用命令: {path}")
             return
         try:
             ctypes.windll.shell32.ShellExecuteW(None, "properties", path, None, None, 1)
@@ -193,16 +228,20 @@ class AppOpsMixin:
 
     def _on_add_app(self):
         """添加应用（文件选择）"""
-        from services.platform import get_app_info
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, "选择应用", os.environ.get("PROGRAMFILES", ""),
-            "可执行文件 (*.exe *.lnk *.bat *.cmd);;所有文件 (*.*)"
-        )
+        from services.platform import get_app_info, IS_LINUX
+        if IS_LINUX:
+            start_dir, name_filter = "/usr/share/applications", "应用文件 (*.desktop);;所有文件 (*.*)"
+        else:
+            start_dir = os.environ.get("PROGRAMFILES", "")
+            name_filter = "可执行文件 (*.exe *.lnk *.bat *.cmd);;所有文件 (*.*)"
+        paths, _ = QFileDialog.getOpenFileNames(self, "选择应用", start_dir, name_filter)
         if not paths:
             return
         added = 0
         for path in paths:
             info = get_app_info(path)
+            if not info:
+                continue
             if self.config.add_app(self.config.current_category, info):
                 added += 1
         if added:

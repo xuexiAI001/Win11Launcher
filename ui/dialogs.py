@@ -15,6 +15,7 @@ from PySide6.QtGui import QFont
 from core import constants as C
 from core.logger import get_logger
 from ui import window_effects
+from services.platform import IS_LINUX
 
 logger = get_logger()
 
@@ -105,6 +106,25 @@ class SettingsDialog(QDialog):
         row.addStretch(1)
         layout.addLayout(row)
 
+        # 界面缩放（实时预览；保存时写入配置；Ctrl+滚轮同样可调）
+        row = QHBoxLayout()
+        row.addWidget(QLabel("界面缩放:"))
+        self.zoom_slider = QSlider(Qt.Horizontal)
+        self.zoom_slider.setRange(int(C.UI_SCALE_MIN * 100), int(C.UI_SCALE_MAX * 100))
+        self.zoom_slider.setSingleStep(int(C.UI_SCALE_STEP * 100))
+        self.zoom_slider.setValue(int(round(getattr(self.config, "ui_scale", 1.0) * 100)))
+        self.zoom_slider.setFixedWidth(200)
+        self.zoom_label = QLabel(f"{self.zoom_slider.value()}%")
+        self.zoom_slider.valueChanged.connect(self._on_zoom_preview)
+        row.addWidget(self.zoom_slider)
+        row.addWidget(self.zoom_label)
+        hint = QLabel("（Ctrl+滚轮也可调整）")
+        hint.setStyleSheet(f"color: {self._c(C.COLOR_STATUS_TEXT)};")
+        row.addWidget(hint)
+        row.addStretch(1)
+        layout.addLayout(row)
+        self._zoom_original = getattr(self.config, "ui_scale", 1.0)
+
         # 开机自启
         self.autostart_check = QCheckBox("开机自启动")
         from services.platform import autostart_is_enabled as is_autostart_enabled
@@ -130,7 +150,8 @@ class SettingsDialog(QDialog):
         layout.addLayout(row)
 
         # 查看已扫描应用
-        self.scan_btn = QPushButton("查看已扫描应用（开始菜单）")
+        scan_label = "查看已扫描应用（应用列表）" if IS_LINUX else "查看已扫描应用（开始菜单）"
+        self.scan_btn = QPushButton(scan_label)
         self.scan_btn.setFixedHeight(32)
         self.scan_btn.clicked.connect(self._open_scanned_apps)
         layout.addWidget(self.scan_btn)
@@ -158,6 +179,11 @@ class SettingsDialog(QDialog):
         """透明度滑块变化：立即预览（不写配置）"""
         self.alpha_label.setText(f"{value}%")
         self.main_window.preview_alpha(value / 100.0)
+
+    def _on_zoom_preview(self, value: int):
+        """缩放滑块变化：立即预览（不写配置，保存时持久化）"""
+        self.zoom_label.setText(f"{value}%")
+        self.main_window.set_zoom(value / 100.0, persist=False)
 
     def _open_category_manager(self):
         dlg = CategoryManagerDialog(self.main_window)
@@ -193,6 +219,7 @@ class SettingsDialog(QDialog):
         self.config.theme = self.theme_combo.currentText()
         self.config.alpha = self.alpha_slider.value() / 100.0
         self.config.minimize_to_tray = self.tray_check.isChecked()
+        self.config.ui_scale = self.zoom_slider.value() / 100.0
         self.config.__dict__["hotkey"] = self.hotkey_edit.text().strip()
 
         from services.platform import autostart_set as set_autostart
@@ -209,6 +236,8 @@ class SettingsDialog(QDialog):
         """关闭（含取消按钮、X 按钮）：恢复预览前的主题与透明度"""
         self.main_window.restore_preview_theme()
         self.main_window.preview_alpha(self.config.alpha)
+        # 恢复预览前的缩放（不写配置）
+        self.main_window.set_zoom(self._zoom_original, persist=False)
         super().reject()
 
 

@@ -6,12 +6,42 @@ import time
 from PySide6.QtWidgets import QInputDialog
 
 from core.logger import get_logger
+from services.platform import IS_LINUX
 
 logger = get_logger()
 
 
 class ContextMenuMixin:
     """空白处右键菜单与"新建"操作（依赖 MainWindow 提供的方法/状态）"""
+
+    @staticmethod
+    def _desktop_dir() -> str:
+        """桌面目录
+
+        Windows：~/Desktop（原行为）；
+        Linux（麒麟）：依次读 XDG user-dirs.dirs、~/Desktop、~/桌面。
+        """
+        home = os.path.expanduser("~")
+        if not IS_LINUX:
+            return os.path.join(home, "Desktop")
+        candidates = []
+        ud_file = os.path.join(home, ".config", "user-dirs.dirs")
+        if os.path.isfile(ud_file):
+            try:
+                with open(ud_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("XDG_DESKTOP_DIR"):
+                            val = line.split("=", 1)[1].strip().strip('"')
+                            candidates.append(val.replace("$HOME", home))
+            except Exception:
+                pass
+        candidates.append(os.path.join(home, "Desktop"))
+        candidates.append(os.path.join(home, "桌面"))
+        for c in candidates:
+            if os.path.isdir(c):
+                return c
+        return home
 
     # ------------------------------------------------------------
     # 空白处右键菜单
@@ -47,7 +77,7 @@ class ContextMenuMixin:
 
     def _create_new_file(self, kind: str):
         """在桌面新建文件并加入当前分类"""
-        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        desktop = self._desktop_dir()
         ts = time.strftime("%Y%m%d_%H%M%S")
         ext_map = {"txt": ".txt", "docx": ".docx", "xlsx": ".xlsx", "pptx": ".pptx"}
         name_map = {"txt": "新建文本文档", "docx": "新建文档", "xlsx": "新建表格", "pptx": "新建演示"}

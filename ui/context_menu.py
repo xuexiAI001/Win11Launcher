@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 
 from core import constants as C
 from core.logger import get_logger
+from services.platform import IS_LINUX
 
 logger = get_logger()
 
@@ -62,7 +63,9 @@ def build_app_menu(parent, app_data: dict, dark: bool, handlers: dict) -> QMenu:
         return act
 
     add("启动", "launch")
-    add("管理员身份启动", "launch_admin")
+    if not IS_LINUX:
+        # 管理员身份启动为 Windows 专有（UAC 提权），Linux 无等价入口
+        add("管理员身份启动", "launch_admin")
     menu.addSeparator()
 
     # 移动分类子菜单
@@ -101,7 +104,9 @@ def build_app_menu(parent, app_data: dict, dark: bool, handlers: dict) -> QMenu:
     add("清空当前分类", "clear_category")
     menu.addSeparator()
     add("打开文件位置", "open_location")
-    add("属性", "properties")
+    if not IS_LINUX:
+        # 属性页为 Windows 资源管理器专有
+        add("属性", "properties")
     menu.addSeparator()
     add("设置", "settings")
 

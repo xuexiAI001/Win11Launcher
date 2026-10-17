@@ -30,6 +30,9 @@ class DragDropMixin:
             if not path or os.path.isdir(path):
                 continue
             info = get_app_info(path)
+            if not info:
+                skipped += 1
+                continue
             if self.config.add_app(self.config.current_category, info):
                 added += 1
             else:

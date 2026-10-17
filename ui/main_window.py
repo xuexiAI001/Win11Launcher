@@ -34,6 +34,7 @@ from ui.behaviors.app_ops import AppOpsMixin
 from ui.behaviors.context_menus import ContextMenuMixin
 from ui.behaviors.dragdrop import DragDropMixin
 from ui.behaviors.window_events import WindowEventsMixin
+from ui.behaviors.zoom import ZoomMixin
 
 logger = get_logger()
 
@@ -50,6 +51,7 @@ class MainWindow(
     ContextMenuMixin,
     DragDropMixin,
     WindowEventsMixin,
+    ZoomMixin,
 ):
     """主窗口：组合多个行为 Mixin，保持对外接口（构造方式、方法名）完全不变"""
 
@@ -59,6 +61,8 @@ class MainWindow(
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
+        # 界面缩放：必须在任何尺寸/字号读取与 _setup_ui 之前应用
+        C.set_scale(self.config.ui_scale)
         self.dark = self._resolve_dark()
 
         self.setWindowTitle(C.WINDOW_TITLE)
@@ -92,3 +96,4 @@ class MainWindow(
         self._refresh_grid()
         self._setup_system_integration()
         self._setup_theme_watcher()
+        self._setup_zoom()

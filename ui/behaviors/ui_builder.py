@@ -12,6 +12,7 @@ from PySide6.QtGui import QFont, QIcon
 
 from core import constants as C
 from core.logger import get_logger
+from services.platform import IS_LINUX
 
 logger = get_logger()
 
@@ -57,7 +58,7 @@ class UiBuilderMixin:
     def _setup_title_bar(self, parent_layout):
         """标题栏"""
         frame = QWidget()
-        frame.setFixedHeight(36)
+        frame.setFixedHeight(C.TITLEBAR_HEIGHT)
         fl = QHBoxLayout(frame)
         fl.setContentsMargins(16, 12, 16, 4)
 
@@ -67,7 +68,31 @@ class UiBuilderMixin:
         label.setFont(font)
         label.setAlignment(Qt.AlignCenter)
         label.setStyleSheet(f"color: {self._c(C.COLOR_TITLE_TEXT)};")
-        fl.addWidget(label, 1)
+
+        if IS_LINUX:
+            # Linux（麒麟）提供窗口控制按钮；Windows 版保持原有纯净标题栏
+            btn_style = (
+                f"QPushButton {{ background: transparent; border: none;"
+                f" color: {self._c(C.COLOR_TITLE_TEXT)};"
+                f" font-family: '{C.FONT_FAMILY}'; font-size: {C.FONT_MENU_SIZE}px;"
+                f" padding: 2px 8px; border-radius: 4px; }}"
+                f"QPushButton:hover {{ background: rgba(128,128,128,0.25); }}"
+            )
+            self._btn_maximize = QPushButton("最大化")
+            self._btn_maximize.setStyleSheet(btn_style)
+            self._btn_maximize.setCursor(Qt.PointingHandCursor)
+            self._btn_maximize.clicked.connect(self.toggle_maximize)
+            self._btn_fullscreen = QPushButton("全屏")
+            self._btn_fullscreen.setStyleSheet(btn_style)
+            self._btn_fullscreen.setCursor(Qt.PointingHandCursor)
+            self._btn_fullscreen.clicked.connect(self.toggle_fullscreen)
+            fl.addStretch(1)
+            fl.addWidget(label)
+            fl.addStretch(1)
+            fl.addWidget(self._btn_maximize)
+            fl.addWidget(self._btn_fullscreen)
+        else:
+            fl.addWidget(label, 1)
         self._title_label = label
 
         parent_layout.addWidget(frame)

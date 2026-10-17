@@ -10,14 +10,14 @@ import json
 import shutil
 from typing import Any
 
-from core.constants import CONFIG_FILE, DEFAULT_CATEGORIES, WINDOW_ALPHA_DEFAULT, THEME_SYSTEM
+from core.constants import CONFIG_FILE, DEFAULT_CATEGORIES, WINDOW_ALPHA_DEFAULT, THEME_SYSTEM, UI_SCALE_DEFAULT
 from core.logger import get_logger
 
 logger = get_logger()
 
 
 class Config:
-    """应用配置：应用列表、分类、透明度、主题"""
+    """应用配置：应用列表、分类、透明度、主题、界面缩放"""
 
     def __init__(self):
         self.app_config: dict[str, list[dict]] = {}
@@ -25,6 +25,7 @@ class Config:
         self.alpha: float = WINDOW_ALPHA_DEFAULT
         self.theme: str = THEME_SYSTEM
         self.minimize_to_tray: bool = True
+        self.ui_scale: float = UI_SCALE_DEFAULT
         self.current_category: str = self.categories[0]
         self._init_defaults()
 
@@ -68,6 +69,12 @@ class Config:
             if "minimize_to_tray" in data:
                 self.minimize_to_tray = bool(data["minimize_to_tray"])
 
+            if "ui_scale" in data:
+                try:
+                    self.ui_scale = float(data["ui_scale"])
+                except (TypeError, ValueError):
+                    pass
+
             if self.current_category not in self.categories:
                 self.current_category = self.categories[0]
 
@@ -85,6 +92,7 @@ class Config:
                 "alpha": self.alpha,
                 "theme": self.theme,
                 "minimize_to_tray": self.minimize_to_tray,
+                "ui_scale": self.ui_scale,
             }
             tmp_path = CONFIG_FILE + '.tmp'
             with open(tmp_path, 'w', encoding='utf-8') as f:
@@ -115,6 +123,7 @@ class Config:
                 "alpha": self.alpha,
                 "theme": self.theme,
                 "minimize_to_tray": self.minimize_to_tray,
+                "ui_scale": self.ui_scale,
             }
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -144,6 +153,11 @@ class Config:
                 self.theme = data["theme"]
             if "minimize_to_tray" in data:
                 self.minimize_to_tray = bool(data["minimize_to_tray"])
+            if "ui_scale" in data:
+                try:
+                    self.ui_scale = float(data["ui_scale"])
+                except (TypeError, ValueError):
+                    pass
             if self.current_category not in self.categories:
                 self.current_category = self.categories[0]
             logger.debug(f"配置已导入: {path}")

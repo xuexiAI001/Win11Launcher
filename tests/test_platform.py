@@ -198,6 +198,14 @@ def test_linux_autostart_roundtrip(tmp_path, monkeypatch):
     assert linux_autostart.is_autostart_enabled() is False
 
 
+# ---------- Linux: 主题深浅判定（Qt 调色板，无需 DBus） ----------
+
+def test_system_prefers_dark_linux_returns_bool():
+    from ui.behaviors.theme import ThemeApplyMixin
+    result = ThemeApplyMixin._system_prefers_dark_linux()
+    assert isinstance(result, bool)
+
+
 # ---------- Linux: launch_app 容错 ----------
 
 def test_linux_launch_app_tolerates_bad_input():

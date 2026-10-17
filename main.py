@@ -13,6 +13,8 @@ import ctypes
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.logger import get_logger
+from core import constants as C
+from services.platform import IS_LINUX
 
 logger = get_logger()
 
@@ -34,6 +36,8 @@ APP_USER_MODEL_ID = "Win11Launcher.Launcher.1"
 
 # 保存互斥体句柄，防止被垃圾回收导致互斥体销毁、单实例检测失效
 _mutex_handle = None
+# Linux 单实例服务引用（同理防止 GC）
+_linux_single_instance = None
 
 
 def _set_app_user_model_id():
@@ -82,8 +86,17 @@ def _is_already_running() -> bool:
 
 
 def main():
-    if _is_already_running():
-        return
+    global _linux_single_instance
+    if IS_LINUX:
+        # Linux（麒麟）：QLocalServer 单实例
+        from services.single_instance import LinuxSingleInstance
+        si = LinuxSingleInstance()
+        if not si.try_start():
+            return
+        _linux_single_instance = si  # 持引用，防止被 GC 回收
+    else:
+        if _is_already_running():
+            return
 
     # 必须在创建 QApplication / 窗口前设置，否则任务栏显示 Python 图标
     _set_app_user_model_id()
@@ -94,10 +107,20 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Win11Launcher")
 
+    # Linux（麒麟）无微软雅黑：QApplication 创建后解析本机可用中文字体
+    if IS_LINUX:
+        fam = C.resolve_font_family()
+        if fam:
+            C.FONT_FAMILY = fam
+            logger.debug(f"Linux 字体族解析为: {fam}")
+
     config = Config()
     config.load()
 
     window = MainWindow(config)
+    if _linux_single_instance is not None:
+        # 其他实例唤起请求 → 主线程显示窗口（ThemeWatcherMixin 提供）
+        _linux_single_instance.activated.connect(window._on_show_request)
     window.show()
 
     logger.debug("主窗口已启动")

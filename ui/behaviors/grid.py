@@ -23,6 +23,19 @@ class GridMixin:
             if w is not None:
                 w.hide()
 
+    def _effective_columns(self) -> int:
+        """当前有效列数
+
+        常规状态 = C.GRID_COLUMNS（与历史行为一致）；
+        最大化/全屏时按窗口可用宽度自适应，避免大窗口下内容稀疏居中。
+        """
+        if not (self.isMaximized() or self.isFullScreen()):
+            return C.GRID_COLUMNS
+        # 可用宽 = 窗宽 - 网格容器左右边距(8+8)；列间距按 GRID_PADDING
+        avail = max(1, self.width() - 16)
+        per = C.ITEM_WIDTH + C.GRID_PADDING
+        return max(1, min(16, int((avail + C.GRID_PADDING) // per)))
+
     def _refresh_grid(self):
         """刷新当前分类的应用网格"""
         category = self.config.current_category
@@ -46,9 +59,9 @@ class GridMixin:
                 cards.append(card)
             self._card_cache[category] = cards
 
-        # 布局（固定 9 列，卡片居中）
+        # 布局（固定 9 列，卡片居中；最大化/全屏时列数自适应）
         for i, card in enumerate(cards):
-            row, col = divmod(i, C.GRID_COLUMNS)
+            row, col = divmod(i, self._effective_columns())
             self.grid_layout.addWidget(card, row, col, Qt.AlignCenter)
             card.show()
 

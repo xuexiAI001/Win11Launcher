@@ -22,6 +22,7 @@ class ThemeWatcherMixin:
     def _setup_theme_watcher(self):
         """监听系统主题变化 + 单实例唤起请求"""
         if sys.platform != "win32":
+            self._setup_linux_theme_polling()
             return
         try:
             self._theme_filter = _ThemeChangeFilter(
@@ -31,6 +32,25 @@ class ThemeWatcherMixin:
             logger.debug("系统主题变化监听已安装")
         except Exception as e:
             logger.debug(f"安装主题监听失败: {e}")
+
+    def _setup_linux_theme_polling(self):
+        """Linux 无 WM_SETTINGCHANGE：轮询 Qt 调色板深浅变化（仅跟随系统时生效）"""
+        self._last_dark_linux = self._resolve_dark()
+        self._theme_poll_timer = QTimer(self)
+        self._theme_poll_timer.setInterval(3000)
+        self._theme_poll_timer.timeout.connect(self._poll_linux_theme)
+        self._theme_poll_timer.start()
+        logger.debug("Linux 主题轮询已启动（3s 间隔）")
+
+    def _poll_linux_theme(self):
+        if self.config.theme != C.THEME_SYSTEM:
+            return
+        new_dark = self._resolve_dark()
+        if new_dark == getattr(self, "_last_dark_linux", None):
+            return
+        self._last_dark_linux = new_dark
+        logger.debug(f"检测到系统主题变化，切换为{'深色' if new_dark else '浅色'}")
+        self.apply_theme()
 
     def _on_show_request(self):
         """收到新实例的唤起请求（原生事件线程，需投递到主线程）"""
