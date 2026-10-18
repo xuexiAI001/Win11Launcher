@@ -82,14 +82,27 @@ venv_healthy() {
 }
 
 # venv_bootstrap_pip：ensurepip 缺失时的兜底——先 --without-pip 建环境，
-# 再用本地 get-pip.py + pip wheel 离线引导安装 pip。
+# 再用本地 pip wheel 引导安装 pip。pip wheel 本身就是 zip，挂上 PYTHONPATH
+# 即可经 zipimport 直接运行（与 get-pip.py 的内部机制完全相同），
+# 因此不依赖任何引导脚本——纯文本脚本在 U 盘/传输中最易损坏（真机踩坑）。
 # 全程无需 root、无需 apt、无需联网（适配离线麒麟机器）。
 venv_bootstrap_pip() {
     local tools="$SCRIPT_DIR/tools"
-    ls "$tools"/pip-*.whl >/dev/null 2>&1 || return 1
-    [ -f "$tools/get-pip.py" ] || return 1
+    local whl
+    whl="$(ls "$tools"/pip-*.whl 2>/dev/null | head -1)"
+    if [ -z "$whl" ]; then
+        echo "错误：$tools 下缺少 pip-*.whl（离线引导 pip 必需，需随项目一起拷贝）"
+        return 1
+    fi
+    # wheel 是 zip：先做 CRC 完整性校验，避免拷贝损坏后报出难懂的 zipimport 错误
+    if ! "$PYTHON" -c "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).testzip()" "$whl" >/dev/null 2>&1; then
+        echo "错误：pip wheel 完整性校验失败（多半是拷贝过程损坏）：$whl"
+        echo "  请重新拷贝 packaging/kylin/tools/ 目录后重跑本脚本。"
+        return 1
+    fi
     "$PYTHON" -m venv --without-pip "$VENV" || return 1
-    "$VENV/bin/python" "$tools/get-pip.py" --no-index --find-links="$tools" || return 1
+    PYTHONPATH="$whl" "$VENV/bin/python" -m pip install \
+        --disable-pip-version-check --no-index --find-links="$tools" pip || return 1
     venv_healthy
 }
 
@@ -103,13 +116,13 @@ if [ ! -d "$VENV" ]; then
     if ! "$PYTHON" -m venv "$VENV" || ! venv_healthy; then
         # ensurepip 缺失（麒麟最小化安装常见）：清理残骸，切换离线引导模式
         rm -rf "$VENV"
-        echo "==> ensurepip 不可用，切换离线引导模式（--without-pip + get-pip，无需 apt/root）"
+        echo "==> ensurepip 不可用，切换离线引导模式（--without-pip + pip wheel zipimport，无需 apt/root）"
         if venv_bootstrap_pip; then
             echo "==> pip 引导成功：$("$VENV/bin/python" -m pip --version 2>&1 | head -1)"
         else
             rm -rf "$VENV"
             echo "错误：venv 创建与离线引导均失败。请检查："
-            echo "  1) packaging/kylin/tools/ 下是否有 get-pip.py 和 pip-*.whl（需随项目一起拷贝）"
+            echo "  1) packaging/kylin/tools/ 下是否有 pip-*.whl 且完整（需随项目一起拷贝）"
             echo "  2) 或有软件源时安装 venv 组件："
             echo "        sudo apt-get update && sudo apt-get install python3.8-venv python3-pip"
             echo "     （若提示无法定位软件包，换用：sudo apt-get install python3-3.8-venv）"

@@ -68,8 +68,8 @@ bash packaging/kylin/build_on_kylin.sh
 ```
 
 脚本自动完成：架构检测 → wheelhouse 检查 → Python 3.8 校验 → 建 venv
-（缺 ensurepip 时自动用 tools/ 离线引导 pip，无需 apt/root）→ 离线装依赖（`--no-index`）→
-导入冒烟 → PyInstaller 打包 → 产物校验 → 无头冒烟运行。
+（缺 ensurepip 时自动用 tools/ 的 pip wheel 经 zipimport 离线引导，无需 apt/root）→
+离线装依赖（`--no-index`）→ 导入冒烟 → PyInstaller 打包 → 产物校验 → 无头冒烟运行。
 
 成功后产物在 `dist-linux/Win11Launcher/`，可直接双击 `Win11Launcher` 运行。
 
@@ -95,7 +95,7 @@ sudo dpkg -i packaging/kylin/win11launcher_*.deb
 | `win11launcher.spec` | Linux 专用 PyInstaller 配置（排除 Windows 专有模块/numpy） |
 | `make_deb.sh` | 把构建产物打成 `.deb`（/opt 安装 + 桌面入口 + hicolor 图标） |
 | `win11launcher.desktop` | 桌面菜单入口文件 |
-| `tools/` | 离线引导物料：`get-pip.py` + `pip` wheel（ensurepip 缺失时兜底，**需随项目一起拷贝**） |
+| `tools/` | 离线引导物料：`pip` wheel（ensurepip 缺失时挂 PYTHONPATH 经 zipimport 引导，**需随项目一起拷贝**） |
 | `wheelhouse/` | （运行 prepare 后生成）离线安装源，**不入 git** |
 | `.venv-build/` | （运行 build 后生成）构建用虚拟环境，**不入 git** |
 
@@ -105,14 +105,16 @@ sudo dpkg -i packaging/kylin/win11launcher_*.deb
 
 **Q1：报错 `ensurepip is not available` 或 `No module named pip`**
 麒麟最小化安装缺少 venv 组件。**当前版本脚本已全自动处理，无需任何手动操作**：
-ensurepip 不可用时会自动切换 `--without-pip` + 本地 `tools/get-pip.py` 离线引导安装 pip
-（不需要 root、不需要 apt、不需要联网）。
+ensurepip 不可用时会自动切换 `--without-pip` + 本地 `tools/pip-*.whl`
+（挂 PYTHONPATH 经 zipimport 运行，与 get-pip.py 内部机制相同）离线引导安装 pip
+（不需要 root、不需要 apt、不需要联网）。引导前会对 wheel 做 CRC 完整性校验——
+若报"完整性校验失败"，说明该文件在 U 盘/传输中损坏，重新拷贝 `tools/` 即可。
 
 若引导仍失败（极端情况），或使用旧版套件：
 - 手动清理残骸后重跑：`rm -rf packaging/kylin/.venv-build`
 - 有软件源时安装 venv 组件：`sudo apt-get update && sudo apt-get install python3.8-venv python3-pip`
   （提示"无法定位软件包"就换 `python3-3.8-venv`）；
-- 确认 `packaging/kylin/tools/` 下的 `get-pip.py` 和 `pip-*.whl` 已随项目一起拷贝。
+- 确认 `packaging/kylin/tools/` 下的 `pip-*.whl` 已随项目一起拷贝。
 
 **Q2：脚本报 `检测到 Python 3.x，但 wheelhouse 是按 Python 3.8 准备的`**
 wheelhouse 里 Pillow 10.4.0 仅提供 cp38 轮子（最后一个支持 3.8 的 Pillow）。
