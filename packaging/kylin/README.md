@@ -99,9 +99,14 @@ sudo dpkg -i packaging/kylin/win11launcher_*.deb
 
 ## 四、常见问题
 
-**Q1：`venv 创建失败` / `ensurepip is not available`**
-麒麟最小化安装缺少 `python3-venv`，执行：
-`sudo apt-get update && sudo apt-get install python3-venv python3-pip`，然后重跑。
+**Q1：报错 `ensurepip is not available` 或 `No module named pip`**
+麒麟最小化安装缺少 venv 组件（Python 3.8 的包名因发行版而异）：
+`sudo apt-get update && sudo apt-get install python3.8-venv python3-pip`
+（若提示"无法定位软件包"，换用 `python3-3.8-venv`）。
+
+注意：缺 ensurepip 时 `python -m venv` 会留下**没有 pip 的残骸目录**，
+不处理就重跑会报 `No module named pip`。当前版本脚本会自动检测并删除残骸后重建；
+若使用旧版套件，请先手动 `rm -rf packaging/kylin/.venv-build` 再重跑。
 
 **Q2：脚本报 `检测到 Python 3.x，但 wheelhouse 是按 Python 3.8 准备的`**
 wheelhouse 里 Pillow 10.4.0 仅提供 cp38 轮子（最后一个支持 3.8 的 Pillow）。

@@ -72,12 +72,29 @@ if [ "$PY_VER" != "3.8" ]; then
     exit 1
 fi
 
-# ---------- 3. 创建 venv（隔离安装，不污染系统 Python） ----------
+# ---------- 3. 创建/复用 venv（隔离安装，不污染系统 Python） ----------
+# 健康检查：解释器存在且 pip 可用。
+# 背景：麒麟最小化安装缺 ensurepip 组件时，`python -m venv` 先建目录、
+#       后跑 ensurepip 才失败，留下"没有 pip 的残骸 venv"。若不做检查
+#       直接复用，后续 pip install 必报 "No module named pip"。
+venv_healthy() {
+    [ -x "$VENV/bin/python" ] && "$VENV/bin/python" -m pip --version >/dev/null 2>&1
+}
+
+if [ -d "$VENV" ] && ! venv_healthy; then
+    echo "==> 已存在的虚拟环境不可用（缺少 pip 或已损坏），自动删除重建：$VENV"
+    rm -rf "$VENV"
+fi
+
 if [ ! -d "$VENV" ]; then
     echo "==> 创建虚拟环境：$VENV"
-    if ! "$PYTHON" -m venv "$VENV"; then
-        echo "错误：venv 创建失败。麒麟最小化安装可能缺少 python3-venv，请先执行："
-        echo "    sudo apt-get update && sudo apt-get install python3-venv python3-pip"
+    if ! "$PYTHON" -m venv "$VENV" || ! venv_healthy; then
+        # 失败时 venv 可能已留下残骸目录；清理掉，避免下次运行误判为"可复用"
+        rm -rf "$VENV"
+        echo "错误：venv 创建失败或创建后无 pip。麒麟最小化安装通常缺少 venv 组件，请先执行："
+        echo "    sudo apt-get update"
+        echo "    sudo apt-get install python3.8-venv python3-pip"
+        echo "  （若提示无法定位软件包，换用：sudo apt-get install python3-3.8-venv）"
         echo "然后重跑本脚本。"
         exit 1
     fi

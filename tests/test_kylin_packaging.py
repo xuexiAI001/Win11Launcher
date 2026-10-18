@@ -85,6 +85,24 @@ def test_spec_mentions_linux_essentials():
     assert "numpy" in spec, "spec 应排除 numpy（Linux 不需要）"
 
 
+def test_build_script_guards_venv_health():
+    """回归守卫：venv 复用前必须做 pip 健康检查，不可用必须清理残骸。
+
+    背景（麒麟真机实测）：最小化安装缺 ensurepip 组件时，`python -m venv`
+    会留下"没有 pip 的残骸 venv"；脚本若直接复用，后续安装必报
+    "No module named pip"（2026-10-18 用户实测踩坑）。
+    """
+    text = (KIT / "build_on_kylin.sh").read_text(encoding="utf-8")
+    # 复用/创建后都要验证 pip 可用
+    assert "venv_healthy" in text, "build_on_kylin.sh 缺少 venv_healthy 健康检查"
+    assert "-m pip --version" in text, "健康检查必须实际执行 pip --version"
+    # 两条失败路径都要清理残骸目录（复用前发现不健康 + 创建失败）
+    assert text.count('rm -rf "$VENV"') >= 2, \
+        "venv 不可用时必须清理残骸目录（复用前 + 创建失败各一处）"
+    # apt 提示要覆盖麒麟/Ubuntu 两种 venv 包命名
+    assert "python3.8-venv" in text and "python3-3.8-venv" in text
+
+
 def test_shell_scripts_syntax():
     bash = shutil.which("bash")
     if not bash:
