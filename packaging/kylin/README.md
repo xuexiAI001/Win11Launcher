@@ -55,7 +55,9 @@ python packaging/kylin/prepare_wheelhouse.py
 - 国内网络直连 pypi.org 可能很慢（大轮子仅十几 KB/s），建议换镜像源：
   `python packaging/kylin/prepare_wheelhouse.py --index-url https://mirrors.aliyun.com/pypi/simple`
   （阿里云 / 腾讯云 / 华为云 / USTC 均可；**清华 TUNA 镜像会拦截 pip 客户端返回 403，不要使用**）；
-- 产物：`packaging/kylin/wheelhouse/<arch>/*.whl`（该目录不入 git，用 U 盘/内网拷贝）。
+- 产物：`packaging/kylin/wheelhouse/<arch>/*.whl`（该目录不入 git，用 U 盘/内网拷贝）；
+- 同时会自动补齐 `packaging/kylin/tools/` 下的离线 pip 引导物料（缺失时，
+  锁 pip 25.0.1——最后支持 Python 3.8 的版本；已存在则跳过）。
 
 ### 第 2 步：拷贝到麒麟机器并构建
 
@@ -65,8 +67,9 @@ python packaging/kylin/prepare_wheelhouse.py
 bash packaging/kylin/build_on_kylin.sh
 ```
 
-脚本自动完成：架构检测 → wheelhouse 检查 → Python 3.8 校验 → 建 venv →
-离线装依赖（`--no-index`）→ 导入冒烟 → PyInstaller 打包 → 产物校验 → 无头冒烟运行。
+脚本自动完成：架构检测 → wheelhouse 检查 → Python 3.8 校验 → 建 venv
+（缺 ensurepip 时自动用 tools/ 离线引导 pip，无需 apt/root）→ 离线装依赖（`--no-index`）→
+导入冒烟 → PyInstaller 打包 → 产物校验 → 无头冒烟运行。
 
 成功后产物在 `dist-linux/Win11Launcher/`，可直接双击 `Win11Launcher` 运行。
 
@@ -92,6 +95,7 @@ sudo dpkg -i packaging/kylin/win11launcher_*.deb
 | `win11launcher.spec` | Linux 专用 PyInstaller 配置（排除 Windows 专有模块/numpy） |
 | `make_deb.sh` | 把构建产物打成 `.deb`（/opt 安装 + 桌面入口 + hicolor 图标） |
 | `win11launcher.desktop` | 桌面菜单入口文件 |
+| `tools/` | 离线引导物料：`get-pip.py` + `pip` wheel（ensurepip 缺失时兜底，**需随项目一起拷贝**） |
 | `wheelhouse/` | （运行 prepare 后生成）离线安装源，**不入 git** |
 | `.venv-build/` | （运行 build 后生成）构建用虚拟环境，**不入 git** |
 
@@ -100,13 +104,15 @@ sudo dpkg -i packaging/kylin/win11launcher_*.deb
 ## 四、常见问题
 
 **Q1：报错 `ensurepip is not available` 或 `No module named pip`**
-麒麟最小化安装缺少 venv 组件（Python 3.8 的包名因发行版而异）：
-`sudo apt-get update && sudo apt-get install python3.8-venv python3-pip`
-（若提示"无法定位软件包"，换用 `python3-3.8-venv`）。
+麒麟最小化安装缺少 venv 组件。**当前版本脚本已全自动处理，无需任何手动操作**：
+ensurepip 不可用时会自动切换 `--without-pip` + 本地 `tools/get-pip.py` 离线引导安装 pip
+（不需要 root、不需要 apt、不需要联网）。
 
-注意：缺 ensurepip 时 `python -m venv` 会留下**没有 pip 的残骸目录**，
-不处理就重跑会报 `No module named pip`。当前版本脚本会自动检测并删除残骸后重建；
-若使用旧版套件，请先手动 `rm -rf packaging/kylin/.venv-build` 再重跑。
+若引导仍失败（极端情况），或使用旧版套件：
+- 手动清理残骸后重跑：`rm -rf packaging/kylin/.venv-build`
+- 有软件源时安装 venv 组件：`sudo apt-get update && sudo apt-get install python3.8-venv python3-pip`
+  （提示"无法定位软件包"就换 `python3-3.8-venv`）；
+- 确认 `packaging/kylin/tools/` 下的 `get-pip.py` 和 `pip-*.whl` 已随项目一起拷贝。
 
 **Q2：脚本报 `检测到 Python 3.x，但 wheelhouse 是按 Python 3.8 准备的`**
 wheelhouse 里 Pillow 10.4.0 仅提供 cp38 轮子（最后一个支持 3.8 的 Pillow）。

@@ -101,6 +101,30 @@ def test_build_script_guards_venv_health():
         "venv 不可用时必须清理残骸目录（复用前 + 创建失败各一处）"
     # apt 提示要覆盖麒麟/Ubuntu 两种 venv 包命名
     assert "python3.8-venv" in text and "python3-3.8-venv" in text
+    # ensurepip 缺失时必须能自动切换到离线引导（--without-pip + get-pip），
+    # 不依赖 apt/root/网络（2026-10-18 离线麒麟机器实测：apt 走不通）
+    assert "--without-pip" in text, "venv 兜底必须走 --without-pip（不依赖 ensurepip）"
+    assert "get-pip.py" in text and "venv_bootstrap_pip" in text
+
+
+def test_bootstrap_tools_present():
+    """离线 pip 引导物料必须随套件一起分发（get-pip.py + pip wheel）。"""
+    tools = KIT / "tools"
+    assert (tools / "get-pip.py").is_file(), "缺少 tools/get-pip.py（离线引导 pip 用）"
+    assert list(tools.glob("pip-*.whl")), "缺少 tools/pip-*.whl（离线引导 pip 用）"
+
+
+def test_prepare_script_pins_bootstrap_pip():
+    """prepare 脚本补齐引导物料时必须锁 pip 25.0.1（最后支持 Python 3.8 的版本）。
+
+    pip 25.1 起移除 3.8 支持（changelog #12989）；若放任下载最新版，
+    离线麒麟机（Python 3.8）上将无法引导 pip。
+    """
+    text = (KIT / "prepare_wheelhouse.py").read_text(encoding="utf-8")
+    assert "pip==25.0.1" in text, "引导 pip 必须锁 25.0.1（25.1+ 不支持 Python 3.8）"
+    assert "bootstrap.pypa.io/pip/3.8/get-pip.py" in text, \
+        "get-pip.py 必须取 3.8 专用源（保证引导脚本兼容 3.8 解释器）"
+    assert "ensure_bootstrap_tools" in text
 
 
 def test_shell_scripts_syntax():

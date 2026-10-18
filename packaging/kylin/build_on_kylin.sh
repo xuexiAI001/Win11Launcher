@@ -73,12 +73,24 @@ if [ "$PY_VER" != "3.8" ]; then
 fi
 
 # ---------- 3. 创建/复用 venv（隔离安装，不污染系统 Python） ----------
-# 健康检查：解释器存在且 pip 可用。
+# venv_healthy：解释器存在且 pip 可用。
 # 背景：麒麟最小化安装缺 ensurepip 组件时，`python -m venv` 先建目录、
-#       后跑 ensurepip 才失败，留下"没有 pip 的残骸 venv"。若不做检查
+#       后跑 ensurepip 才失败，留下"没有 pip 的残骸 venv"；若不做检查
 #       直接复用，后续 pip install 必报 "No module named pip"。
 venv_healthy() {
     [ -x "$VENV/bin/python" ] && "$VENV/bin/python" -m pip --version >/dev/null 2>&1
+}
+
+# venv_bootstrap_pip：ensurepip 缺失时的兜底——先 --without-pip 建环境，
+# 再用本地 get-pip.py + pip wheel 离线引导安装 pip。
+# 全程无需 root、无需 apt、无需联网（适配离线麒麟机器）。
+venv_bootstrap_pip() {
+    local tools="$SCRIPT_DIR/tools"
+    ls "$tools"/pip-*.whl >/dev/null 2>&1 || return 1
+    [ -f "$tools/get-pip.py" ] || return 1
+    "$PYTHON" -m venv --without-pip "$VENV" || return 1
+    "$VENV/bin/python" "$tools/get-pip.py" --no-index --find-links="$tools" || return 1
+    venv_healthy
 }
 
 if [ -d "$VENV" ] && ! venv_healthy; then
@@ -89,14 +101,21 @@ fi
 if [ ! -d "$VENV" ]; then
     echo "==> 创建虚拟环境：$VENV"
     if ! "$PYTHON" -m venv "$VENV" || ! venv_healthy; then
-        # 失败时 venv 可能已留下残骸目录；清理掉，避免下次运行误判为"可复用"
+        # ensurepip 缺失（麒麟最小化安装常见）：清理残骸，切换离线引导模式
         rm -rf "$VENV"
-        echo "错误：venv 创建失败或创建后无 pip。麒麟最小化安装通常缺少 venv 组件，请先执行："
-        echo "    sudo apt-get update"
-        echo "    sudo apt-get install python3.8-venv python3-pip"
-        echo "  （若提示无法定位软件包，换用：sudo apt-get install python3-3.8-venv）"
-        echo "然后重跑本脚本。"
-        exit 1
+        echo "==> ensurepip 不可用，切换离线引导模式（--without-pip + get-pip，无需 apt/root）"
+        if venv_bootstrap_pip; then
+            echo "==> pip 引导成功：$("$VENV/bin/python" -m pip --version 2>&1 | head -1)"
+        else
+            rm -rf "$VENV"
+            echo "错误：venv 创建与离线引导均失败。请检查："
+            echo "  1) packaging/kylin/tools/ 下是否有 get-pip.py 和 pip-*.whl（需随项目一起拷贝）"
+            echo "  2) 或有软件源时安装 venv 组件："
+            echo "        sudo apt-get update && sudo apt-get install python3.8-venv python3-pip"
+            echo "     （若提示无法定位软件包，换用：sudo apt-get install python3-3.8-venv）"
+            echo "然后重跑本脚本。"
+            exit 1
+        fi
     fi
 else
     echo "==> 复用已存在的虚拟环境：$VENV"
