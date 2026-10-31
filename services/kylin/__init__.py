@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Linux（Kylin）后端：.desktop 应用发现 + 图标主题解析 + XDG 自启动 + Exec 启动。
+"""Kylin（Linux）后端：.desktop 应用发现 + 图标主题解析 + XDG 自启动 + Exec 启动。
 
-只在非 Windows 平台被 services.platform 导入，绝不 import Windows 专有模块。
+作为 services.kylin 包，被 services.platform 门面在 Linux 上导入；
+本包内各模块用相对导入互相引用，绝不 import Windows 专有模块。
 """
 
 import shlex
 import subprocess
 
-from services.platform.linux_icons import get_app_icon
-from services.platform.linux_apps import (
+from .linux_icons import get_app_icon
+from .linux_apps import (
     parse_desktop_file,          # 即 get_app_info：.desktop 路径 -> 应用 dict
     LinuxInstallMonitor,
     scan_app_names,
     find_app_by_name,
 )
-from services.platform.linux_autostart import (
+from .linux_autostart import (
     is_autostart_enabled as autostart_is_enabled,
     set_autostart as autostart_set,
 )

@@ -10,7 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
 
-from services.single_instance import LinuxSingleInstance
+from services.kylin.single_instance import LinuxSingleInstance
 
 
 def _pump(ms: int = 300):

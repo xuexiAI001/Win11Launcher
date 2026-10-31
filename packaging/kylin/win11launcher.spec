@@ -2,7 +2,7 @@
 """PyInstaller 打包配置 - Linux（银河麒麟 V10 桌面版 / UKUI）
 
 与根目录 Win11LauncherQt.spec（Windows 版）的差异：
-  - 入口 main.py 在 Linux 上自动走 services.platform._linux 后端
+  - 入口 main.py 在 Linux 上自动走 services.kylin 后端
     （.desktop 应用发现 / SVG 图标 / QLocalServer 单实例 / XDG 自启动），
     Windows 专有模块（icon_extractor / install_monitor / autostart 等）
     在麒麟上永远不会被 import，故一并排除以瘦身体积；
@@ -33,12 +33,12 @@ a = Analysis(
     hiddenimports=[
         # —— 本项目惰性 / 条件 import（静态分析不可见）——
         'PySide6.QtSvg',            # linux_icons.py 函数内 import（SVG 图标渲染）
-        'PySide6.QtNetwork',        # single_instance.py（QLocalServer 单实例）
-        'services.platform._linux',
-        'services.platform.linux_apps',
-        'services.platform.linux_icons',
-        'services.platform.linux_autostart',
-        'services.single_instance',
+        'PySide6.QtNetwork',        # services/kylin/single_instance.py（QLocalServer 单实例）
+        'services.kylin',
+        'services.kylin.linux_apps',
+        'services.kylin.linux_icons',
+        'services.kylin.linux_autostart',
+        'services.kylin.single_instance',
         'services.folder_icon',
         'services.icon_loader',
         'services.hotkey',

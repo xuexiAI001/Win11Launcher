@@ -80,7 +80,7 @@ def test_spec_mentions_linux_essentials():
     spec = (KIT / "win11launcher.spec").read_text(encoding="utf-8")
     # pynput 的 X11 后端与 keysymdef 分组是动态 import，必须在 hiddenimports 中
     for must in ("pynput.keyboard._xorg", "Xlib.keysymdef.xkb", "PySide6.QtSvg",
-                 "PySide6.QtNetwork", "services.platform._linux"):
+                 "PySide6.QtNetwork", "services.kylin"):
         assert must in spec, f"spec hiddenimports 缺少 {must}"
     assert "numpy" in spec, "spec 应排除 numpy（Linux 不需要）"
 

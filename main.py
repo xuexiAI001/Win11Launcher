@@ -89,7 +89,7 @@ def main():
     global _linux_single_instance
     if IS_LINUX:
         # Linux（麒麟）：QLocalServer 单实例
-        from services.single_instance import LinuxSingleInstance
+        from services.kylin.single_instance import LinuxSingleInstance
         si = LinuxSingleInstance()
         if not si.try_start():
             return

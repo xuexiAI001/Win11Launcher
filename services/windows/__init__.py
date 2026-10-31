@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Windows 后端：直接委托既有 Windows 模块，行为与原实现完全一致。
 
-本模块只在 Windows 上被 services.platform 导入，因此可以安全 import
-仅 Windows 可用的模块（ctypes.wintypes / winreg / win32com 等）。
+作为 services.windows 包，被 services.platform 门面在 Windows 上导入，
+因此可以安全 import 仅 Windows 可用的模块（ctypes.wintypes / winreg / win32com 等）。
 """
 
 import os

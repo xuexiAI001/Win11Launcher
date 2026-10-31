@@ -163,7 +163,7 @@ A：删除程序目录，并删除 `%APPDATA%\Win11Launcher\` 配置目录即可
 
 - **语言**：Python 3.8+（开发机 3.14；麒麟机器为 3.8.10，源码按 3.8 兼容）
 - **GUI**：PySide6 6.11（Qt 6）；麒麟离线包锁 6.6.3.1（最后一个支持 py38 + glibc 2.28/2.31 的版本）
-- **平台适配**：`services/platform/` 门面按 `sys.platform` 分流——Windows 委托原有实现（行为不变），
+- **平台适配**：`services/platform/` 门面按 `sys.platform` 分流——Windows 实现位于 `services/windows/`、Kylin（Linux）实现位于 `services/kylin/`，物理分离、互不可见（Windows 端绝不加载 Kylin 代码）；
   Linux 走 `.desktop` 应用发现 / 图标主题解析 / SVG 渲染 / QLocalServer 单实例 / XDG 自启动
 - **图标提取**：pywin32 / ctypes（SHGetImageList、ExtractIconExW 等，Windows）；图标主题 + QSvgRenderer（Linux）
 - **图像处理**：Pillow + numpy（numpy 仅 Windows 图标链路使用）
@@ -180,14 +180,15 @@ Win11Launcher/
 │   ├── config.py        # 配置加载/保存/导入导出
 │   └── logger.py        # 日志系统
 ├── services/            # 服务层（无 UI 依赖）
-│   ├── platform/        # 平台适配门面（_win / _linux 后端 + linux_* 子模块）
+│   ├── platform/        # 平台适配门面：按 sys.platform 选 services.windows / services.kylin
+│   ├── windows/         # Windows 后端（services/windows/__init__.py，委托下面 Windows 模块）
+│   ├── kylin/           # Kylin(Linux) 后端：.desktop 扫描/图标主题/QLocalServer 单实例/XDG 自启
 │   ├── icon_extractor.py    # 图标提取（多级回退，Windows）
 │   ├── icon_loader.py       # 异步图标加载
 │   ├── folder_icon.py       # 文件夹图标合成
 │   ├── app_info.py          # 应用信息解析（Windows）
 │   ├── install_monitor.py   # 安装监控 / 开始菜单扫描（Windows）
 │   ├── autostart.py         # 开机自启（Windows）
-│   ├── single_instance.py   # Linux 单实例（QLocalServer）
 │   └── hotkey.py            # 全局快捷键
 ├── ui/                  # 界面层
 │   ├── main_window.py   # 主窗口
