@@ -99,7 +99,8 @@ class ZoomMixin:
         # 重建中央界面（标题栏 / 标签栏 / 网格 / 状态栏）
         self._setup_ui()
         # 窗口尺寸随缩放等比变化，并保持居中
-        self.setFixedSize(C.WINDOW_WIDTH, C.WINDOW_HEIGHT)
+        # （用 resize 而非 setFixedSize：保持窗口可最大化/缩放）
+        self.resize(C.WINDOW_WIDTH, C.WINDOW_HEIGHT)
         self._center_window()
         self._apply_effects()
         self._refresh_grid()
@@ -109,14 +110,15 @@ class ZoomMixin:
     # 窗口状态（最大化 / 全屏）——仅 Linux 提供入口
     # ------------------------------------------------------------
     def toggle_maximize(self):
-        """最大化 / 还原切换"""
+        """最大化 / 还原切换（Windows 主要用原生标题栏按钮，此处供 Linux/程序调用）"""
         if self.isMaximized():
             self.showNormal()
-            self.setFixedSize(C.WINDOW_WIDTH, C.WINDOW_HEIGHT)
+            self.resize(C.WINDOW_WIDTH, C.WINDOW_HEIGHT)
             self._center_window()
         else:
-            # frameless 窗口：先解除固定尺寸约束再最大化
-            self.setFixedSize(_WIDGET_SIZE_MAX, _WIDGET_SIZE_MAX)
+            # Linux（frameless）需先解除固定尺寸约束；Windows 原生窗口可直接最大化
+            if IS_LINUX:
+                self.setFixedSize(_WIDGET_SIZE_MAX, _WIDGET_SIZE_MAX)
             self.showMaximized()
         self._update_window_buttons()
         self._refresh_grid()

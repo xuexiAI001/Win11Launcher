@@ -70,7 +70,11 @@ class MainWindow(
         self.dark = self._resolve_dark()
 
         self.setWindowTitle(C.WINDOW_TITLE)
-        self.setFixedSize(C.WINDOW_WIDTH, C.WINDOW_HEIGHT)
+        # 允许最大化 / 缩放窗口（此前 setFixedSize 会锁死尺寸，
+        # 导致 Windows 原生标题栏的最大化按钮点击无效）。
+        # 打开时仍按设计尺寸，最小尺寸取设计尺寸的一半，避免缩得过小。
+        self.setMinimumSize(C.WINDOW_WIDTH // 2, C.WINDOW_HEIGHT // 2)
+        self.resize(C.WINDOW_WIDTH, C.WINDOW_HEIGHT)
         # 纯亚克力背景方案：
         # WA_TranslucentBackground 让 Qt 不绘制窗口背景，
         # 配合 DwmExtendFrameIntoClientArea 让 DWM 用亚克力填充整个客户区，

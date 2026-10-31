@@ -22,10 +22,14 @@
 """
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from typing import Dict, List
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QComboBox
+from PySide6.QtGui import QPixmap, QPainter, QPolygon, QColor
+from PySide6.QtCore import Qt, QPoint
 
 from core import constants as C
 from core.logger import get_logger
@@ -160,16 +164,41 @@ class SearchMixin:
         parent_layout.addWidget(frame)
         self._apply_search_theme()
 
+    def _down_arrow_path(self, color: str) -> str:
+        """生成实心向下三角形 PNG（供 QSS ::down-arrow 引用），返回正斜杠路径。
+
+        Qt 的 QSS 不支持用 CSS border 三角（只支持 image），故用 QPainter 画图落盘。
+        写到系统临时目录，避免污染用户数据目录；同色复用同名文件。
+        """
+        safe = color.lstrip("#").replace("/", "")
+        path = os.path.join(tempfile.gettempdir(), f"w11l_search_arrow_{safe}.png")
+        if not os.path.exists(path):
+            pm = QPixmap(12, 8)
+            pm.fill(Qt.transparent)
+            p = QPainter(pm)
+            p.setRenderHint(QPainter.Antialiasing, True)
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(color))
+            poly = QPolygon()
+            poly.append(QPoint(0, 0))
+            poly.append(QPoint(12, 0))
+            poly.append(QPoint(6, 8))
+            p.drawPolygon(poly)
+            p.end()
+            pm.save(path, "PNG")
+        return path.replace("\\", "/")
+
     def _apply_search_theme(self):
         """搜索栏主题样式（跟随深浅色）
 
-        搜索框与分类下拉统一圆角半径，视觉风格匹配；下拉原本的方形箭头区改为
-        右侧圆角 + CSS 三角形箭头，避免突兀的"方块"。
+        搜索框与分类下拉统一圆角半径；下拉箭头使用生成的实心三角形图片，
+        替换 Qt 默认的方形箭头块。
         """
         radius = 10  # 统一圆角半径（输入框与下拉一致）
         bg = self._c(C.COLOR_CARD_BG)
         fg = self._c(C.COLOR_CARD_NAME)
         border = self._c(C.COLOR_INPUT_BORDER)
+        arrow = self._down_arrow_path(fg)
         self._search_edit.parent().setStyleSheet(
             f"QWidget#searchBar {{ background: transparent; }}"
             f"QWidget#searchBar QLineEdit, QWidget#searchBar QComboBox {{"
@@ -177,19 +206,16 @@ class SearchMixin:
             f" border: 1px solid {border}; border-radius: {radius}px;"
             f" font-family: '{C.FONT_FAMILY}'; font-size: {C.FONT_MENU_SIZE}px;"
             f" padding: 2px 8px; }}"
-            # 下拉区：右侧圆角、去掉分隔竖线，避免方形箭头块
+            # 下拉区：右侧圆角、去掉分隔竖线
             f"QWidget#searchBar QComboBox::drop-down {{"
             f" subcontrol-origin: padding; subcontrol-position: top right;"
             f" width: 24px; border-left-width: 0px;"
             f" border-top-right-radius: {radius}px;"
             f" border-bottom-right-radius: {radius}px;"
             f" background: transparent; }}"
-            # 用 CSS 三角形替代默认方块箭头
+            # 实心下拉三角形（图片）
             f"QWidget#searchBar QComboBox::down-arrow {{"
-            f" image: none; width: 0px; height: 0px;"
-            f" border-left: 4px solid transparent;"
-            f" border-right: 4px solid transparent;"
-            f" border-top: 5px solid {fg}; margin-right: 6px; }}"
+            f" image: url({arrow}); width: 12px; height: 8px; }}"
             f"QWidget#searchBar QComboBox QAbstractItemView {{"
             f" background-color: {bg}; color: {fg};"
             f" border: 1px solid {border}; border-radius: {radius}px; }}"
