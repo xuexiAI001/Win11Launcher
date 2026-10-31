@@ -201,21 +201,6 @@ THEME_DARK = "深色"
 THEME_SYSTEM = "跟随系统"
 THEME_OPTIONS = [THEME_LIGHT, THEME_DARK, THEME_SYSTEM]
 
-# ============================================================
-# 搜索引擎（顶部搜索栏，平台无关）
-# ============================================================
-# 回车 / 点击「搜索」调用系统默认浏览器打开对应引擎。
-# 模板中的 {q} 会被 urlencode 后的查询词替换。
-SEARCH_ENGINES = {
-    "百度": "https://www.baidu.com/s?wd={q}",
-    "必应": "https://www.bing.com/search?q={q}",
-    "谷歌": "https://www.google.com/search?q={q}",
-    "搜狗": "https://www.sogou.com/web?query={q}",
-    "DuckDuckGo": "https://duckduckgo.com/?q={q}",
-}
-SEARCH_ENGINE_NAMES = list(SEARCH_ENGINES.keys())
-DEFAULT_SEARCH_ENGINE = "百度"
-
 
 def color(pair, dark: bool) -> str:
     """从 (浅色, 深色) 配色对中取值"""

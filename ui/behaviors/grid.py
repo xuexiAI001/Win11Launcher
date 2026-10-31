@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 from core import constants as C
 from core.logger import get_logger
 from ui.app_card import AppCard
+from ui.behaviors.search import app_matches
 
 logger = get_logger()
 
@@ -37,9 +38,14 @@ class GridMixin:
         return max(1, min(16, int((avail + C.GRID_PADDING) // per)))
 
     def _refresh_grid(self):
-        """刷新当前分类的应用网格"""
+        """刷新当前分类的应用网格（含本地搜索过滤）"""
         category = self.config.current_category
         apps = self.config.get_apps(category)
+
+        # 本地搜索：限定在当前分类内按关键词过滤（无网络）
+        query = getattr(self, "_search_query", "")
+        if query:
+            apps = [a for a in apps if app_matches(a, query)]
 
         # 复用缓存
         if category not in self._card_cache:

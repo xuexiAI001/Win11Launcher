@@ -228,6 +228,9 @@ class UiBuilderMixin:
         """切换分类"""
         if category == self.config.current_category:
             return
+        # 切换分类时清空本地搜索，恢复完整视图
+        if getattr(self, "_search_query", ""):
+            self._clear_search()
         self.config.current_category = category
         self._update_tab_styles()
         self._refresh_grid()
