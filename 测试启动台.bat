@@ -1,12 +1,13 @@
 @echo off
 cd /d "%~dp0"
+set LAUNCHER_ALLOW_MULTI_INSTANCE=1
 
 echo ============================================================
-echo  启动台 - Windows 开发机测试启动器
+echo  启动台 - Windows 开发机测试启动器 (多开调试版)
 echo ------------------------------------------------------------
-echo  本机运行的是 Windows 版本: 同一份源码, 按 sys.platform 自动选择
-echo  Windows 后端。改麒麟代码不影响这里(Windows 后端不会被加载)。
-echo  麒麟专属行为(.desktop 扫描/UKUI 等)只能在麒麟真机验证。
+echo  已开启多开模式(LAUNCHER_ALLOW_MULTI_INSTANCE=1)，可绕过单实例
+echo  限制反复重开/多开，专供 Windows 开发机测试 UI 与功能使用。
+echo  正式入口(启动启动台Qt.bat / 打包exe)仍保持单实例。
 echo ============================================================
 echo.
 

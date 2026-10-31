@@ -87,15 +87,20 @@ def _is_already_running() -> bool:
 
 def main():
     global _linux_single_instance
+    # 测试入口可设 LAUNCHER_ALLOW_MULTI_INSTANCE=1 跳过单实例检测，便于在 Windows
+    # 开发机反复重开 / 多开测试 UI 与功能；正式入口（启动启动台Qt.bat / 打包 exe）
+    # 不设此变量，仍保持单实例。
+    allow_multi = os.environ.get("LAUNCHER_ALLOW_MULTI_INSTANCE") == "1"
     if IS_LINUX:
         # Linux（麒麟）：QLocalServer 单实例
         from services.kylin.single_instance import LinuxSingleInstance
-        si = LinuxSingleInstance()
-        if not si.try_start():
-            return
-        _linux_single_instance = si  # 持引用，防止被 GC 回收
+        if not allow_multi:
+            si = LinuxSingleInstance()
+            if not si.try_start():
+                return
+            _linux_single_instance = si  # 持引用，防止被 GC 回收
     else:
-        if _is_already_running():
+        if not allow_multi and _is_already_running():
             return
 
     # 必须在创建 QApplication / 窗口前设置，否则任务栏显示 Python 图标
