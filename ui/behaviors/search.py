@@ -161,7 +161,12 @@ class SearchMixin:
         self._apply_search_theme()
 
     def _apply_search_theme(self):
-        """搜索栏主题样式（跟随深浅色）"""
+        """搜索栏主题样式（跟随深浅色）
+
+        搜索框与分类下拉统一圆角半径，视觉风格匹配；下拉原本的方形箭头区改为
+        右侧圆角 + CSS 三角形箭头，避免突兀的"方块"。
+        """
+        radius = 10  # 统一圆角半径（输入框与下拉一致）
         bg = self._c(C.COLOR_CARD_BG)
         fg = self._c(C.COLOR_CARD_NAME)
         border = self._c(C.COLOR_INPUT_BORDER)
@@ -169,12 +174,25 @@ class SearchMixin:
             f"QWidget#searchBar {{ background: transparent; }}"
             f"QWidget#searchBar QLineEdit, QWidget#searchBar QComboBox {{"
             f" background-color: {bg}; color: {fg};"
-            f" border: 1px solid {border}; border-radius: 6px;"
+            f" border: 1px solid {border}; border-radius: {radius}px;"
             f" font-family: '{C.FONT_FAMILY}'; font-size: {C.FONT_MENU_SIZE}px;"
             f" padding: 2px 8px; }}"
+            # 下拉区：右侧圆角、去掉分隔竖线，避免方形箭头块
+            f"QWidget#searchBar QComboBox::drop-down {{"
+            f" subcontrol-origin: padding; subcontrol-position: top right;"
+            f" width: 24px; border-left-width: 0px;"
+            f" border-top-right-radius: {radius}px;"
+            f" border-bottom-right-radius: {radius}px;"
+            f" background: transparent; }}"
+            # 用 CSS 三角形替代默认方块箭头
+            f"QWidget#searchBar QComboBox::down-arrow {{"
+            f" image: none; width: 0px; height: 0px;"
+            f" border-left: 4px solid transparent;"
+            f" border-right: 4px solid transparent;"
+            f" border-top: 5px solid {fg}; margin-right: 6px; }}"
             f"QWidget#searchBar QComboBox QAbstractItemView {{"
             f" background-color: {bg}; color: {fg};"
-            f" border: 1px solid {border}; }}"
+            f" border: 1px solid {border}; border-radius: {radius}px; }}"
         )
 
     def _refresh_search_categories(self):

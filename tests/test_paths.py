@@ -4,6 +4,8 @@
 import os
 import sys
 
+import pytest
+
 from core.paths import get_appdata_dir
 
 
@@ -32,6 +34,7 @@ def test_linux_branch_defaults_to_dot_config(monkeypatch):
     assert get_appdata_dir() == os.path.join(os.path.expanduser("~/.config"), "Win11Launcher")
 
 
+@pytest.mark.real_paths  # 本用例就是要校验真实路径常量，豁免配置隔离
 def test_constants_and_logger_use_resolver():
     """constants / logger 均从 core.paths 取目录，保持一致"""
     import core.constants as const
