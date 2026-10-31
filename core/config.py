@@ -12,7 +12,7 @@ import json
 import shutil
 from typing import Any
 
-from core.constants import CONFIG_FILE, DEFAULT_CATEGORIES, WINDOW_ALPHA_DEFAULT, THEME_SYSTEM, UI_SCALE_DEFAULT
+from core.constants import CONFIG_FILE, DEFAULT_CATEGORIES, WINDOW_ALPHA_DEFAULT, THEME_SYSTEM, UI_SCALE_DEFAULT, DEFAULT_SEARCH_ENGINE, SEARCH_ENGINE_NAMES
 from core.logger import get_logger
 
 logger = get_logger()
@@ -28,6 +28,7 @@ class Config:
         self.theme: str = THEME_SYSTEM
         self.minimize_to_tray: bool = True
         self.ui_scale: float = UI_SCALE_DEFAULT
+        self.search_engine: str = DEFAULT_SEARCH_ENGINE
         self.current_category: str = self.categories[0]
         self._init_defaults()
 
@@ -77,6 +78,9 @@ class Config:
                 except (TypeError, ValueError):
                     pass
 
+            if "search_engine" in data and data["search_engine"] in SEARCH_ENGINE_NAMES:
+                self.search_engine = data["search_engine"]
+
             if self.current_category not in self.categories:
                 self.current_category = self.categories[0]
 
@@ -95,6 +99,7 @@ class Config:
                 "theme": self.theme,
                 "minimize_to_tray": self.minimize_to_tray,
                 "ui_scale": self.ui_scale,
+                "search_engine": self.search_engine,
             }
             tmp_path = CONFIG_FILE + '.tmp'
             with open(tmp_path, 'w', encoding='utf-8') as f:
@@ -126,6 +131,7 @@ class Config:
                 "theme": self.theme,
                 "minimize_to_tray": self.minimize_to_tray,
                 "ui_scale": self.ui_scale,
+                "search_engine": self.search_engine,
             }
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -160,6 +166,8 @@ class Config:
                     self.ui_scale = float(data["ui_scale"])
                 except (TypeError, ValueError):
                     pass
+            if "search_engine" in data and data["search_engine"] in SEARCH_ENGINE_NAMES:
+                self.search_engine = data["search_engine"]
             if self.current_category not in self.categories:
                 self.current_category = self.categories[0]
             logger.debug(f"配置已导入: {path}")

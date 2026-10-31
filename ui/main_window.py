@@ -37,6 +37,7 @@ from ui.behaviors.context_menus import ContextMenuMixin
 from ui.behaviors.dragdrop import DragDropMixin
 from ui.behaviors.window_events import WindowEventsMixin
 from ui.behaviors.zoom import ZoomMixin
+from ui.behaviors.search import SearchMixin
 
 logger = get_logger()
 
@@ -54,6 +55,7 @@ class MainWindow(
     DragDropMixin,
     WindowEventsMixin,
     ZoomMixin,
+    SearchMixin,
 ):
     """主窗口：组合多个行为 Mixin，保持对外接口（构造方式、方法名）完全不变"""
 

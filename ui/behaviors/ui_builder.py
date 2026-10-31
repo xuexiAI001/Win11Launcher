@@ -36,6 +36,7 @@ class UiBuilderMixin:
         layout.setSpacing(0)
 
         self._setup_title_bar(layout)
+        self._setup_search(layout)
         self._setup_tabs(layout)
         self._setup_grid(layout)
         self._setup_status_bar(layout)
