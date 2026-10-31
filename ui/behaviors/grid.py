@@ -5,7 +5,6 @@ from PySide6.QtCore import Qt
 from core import constants as C
 from core.logger import get_logger
 from ui.app_card import AppCard
-from ui.behaviors.search import app_matches
 
 logger = get_logger()
 
@@ -38,14 +37,18 @@ class GridMixin:
         return max(1, min(16, int((avail + C.GRID_PADDING) // per)))
 
     def _refresh_grid(self):
-        """刷新当前分类的应用网格（含本地搜索过滤）"""
-        category = self.config.current_category
-        apps = self.config.get_apps(category)
-
-        # 本地搜索：限定在当前分类内按关键词过滤（无网络）
+        """刷新网格：全局搜索模式渲染跨分类结果，常规模式渲染当前分类"""
         query = getattr(self, "_search_query", "")
         if query:
-            apps = [a for a in apps if app_matches(a, query)]
+            self._render_search_results(query)
+            return
+
+        # 常规模式：先清理搜索残留（临时卡片 / 空态），再渲染当前分类
+        self._hide_empty_state()
+        self._dispose_search_cards()
+
+        category = self.config.current_category
+        apps = self.config.get_apps(category)
 
         # 复用缓存
         if category not in self._card_cache:
@@ -77,6 +80,84 @@ class GridMixin:
             self.icon_loader.load(card.app_data, size=C.ICON_SIZE,
                                   is_folder=card.is_folder, theme=theme)
 
+    # ------------------------------------------------------------
+    # 全局搜索结果渲染
+    # ------------------------------------------------------------
+    def _dispose_search_cards(self):
+        """回收上次搜索创建的临时卡片，避免隐藏 widget 无限累积。
+
+        注意：只销毁搜索临时结果卡片，不动 _card_cache 中复用的常规卡片。
+        """
+        cards = getattr(self, "_search_cards", None) or []
+        for card in cards:
+            try:
+                card.setParent(None)
+                card.deleteLater()
+            except Exception:
+                pass
+        self._search_cards = []
+
+    def _render_search_results(self, query: str):
+        """渲染全局搜索结果（跨分类平铺；无结果则显示空态）"""
+        results = self._visible_results() if hasattr(self, "_visible_results") else []
+
+        self._dispose_search_cards()
+        self._clear_grid()
+
+        if not results:
+            self._show_empty_state(f"未找到与「{query}」匹配的应用")
+            return
+        self._hide_empty_state()
+
+        cards = []
+        for item in results:
+            card = AppCard(item["app"], self.dark)
+            # 记录来源分类：右键菜单的移动/删除/重命名据此定位源分类，不依赖 current_category
+            card.setProperty("source_category", item["category"])
+            card.setToolTip(f"分类：{item['category']}")
+            card.clicked.connect(self._on_card_clicked)
+            card.right_clicked.connect(self._on_card_right_clicked)
+            card.drag_released.connect(self._on_card_drag_released)
+            cards.append(card)
+        self._search_cards = cards
+
+        for i, card in enumerate(cards):
+            row, col = divmod(i, self._effective_columns())
+            self.grid_layout.addWidget(card, row, col, Qt.AlignCenter)
+            card.show()
+
+        # 异步加载图标
+        theme = "dark" if self.dark else "light"
+        for card in cards:
+            self.icon_loader.load(card.app_data, size=C.ICON_SIZE,
+                                  is_folder=card.is_folder, theme=theme)
+
+    def _show_empty_state(self, text: str):
+        """无结果空态提示"""
+        from PySide6.QtWidgets import QLabel
+        if getattr(self, "_empty_label", None) is None:
+            self._empty_label = QLabel()
+            self._empty_label.setAlignment(Qt.AlignCenter)
+            self._empty_label.setWordWrap(True)
+        lbl = self._empty_label
+        lbl.setMinimumWidth(max(1, int(self.width() * 0.6)))
+        lbl.setText(text)
+        lbl.setStyleSheet(
+            f"color: {self._c(C.COLOR_STATUS_TEXT)};"
+            f" font-family: '{C.FONT_FAMILY}'; font-size: {C.FONT_MENU_SIZE}px;"
+            f" background: transparent;"
+        )
+        self.grid_layout.addWidget(lbl, 0, 0, 1, self._effective_columns(),
+                                   Qt.AlignCenter)
+        lbl.show()
+
+    def _hide_empty_state(self):
+        """移除空态提示"""
+        lbl = getattr(self, "_empty_label", None)
+        if lbl is not None:
+            lbl.setParent(None)
+            lbl.hide()
+
     def _on_icon_ready(self, app_data: dict, pixmap):
         """普通应用图标就绪"""
         import shiboken6
@@ -85,6 +166,13 @@ class GridMixin:
             for card in cards:
                 if card.app_data is app_data and shiboken6.isValid(card):
                     card.set_icon(pixmap)
+        # 全局搜索结果卡片（跨分类临时卡片）
+        for card in (getattr(self, "_search_cards", None) or []):
+            try:
+                if card.app_data is app_data and shiboken6.isValid(card):
+                    card.set_icon(pixmap)
+            except RuntimeError:
+                continue
         # 文件夹窗口内的卡片
         for win in list(self._folder_windows.values()):
             if not shiboken6.isValid(win):

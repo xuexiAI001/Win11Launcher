@@ -13,6 +13,23 @@ logger = get_logger()
 class AppOpsMixin:
     """应用与文件夹的增删改、启动、属性等操作（依赖 MainWindow 提供的方法/状态）"""
 
+    def _category_of(self, app_data: dict) -> str:
+        """定位应用/文件夹真实所属分类
+
+        全局搜索的结果是跨分类的：结果卡片可能来自任意分类。所有针对具体
+        app_data 的操作（移动 / 删除 / 重命名 / 更换图标等）都必须用它取源分类，
+        绝不能用 current_category（否则会归错分类甚至误删）。
+
+        新增类操作（添加应用、拖入、新建文件夹等）仍以 current_category 为目标，
+        语义不变——不使用本 helper。
+        """
+        if app_data is None:
+            return self.config.current_category
+        for cat, apps in self.config.app_config.items():
+            if any(a is app_data for a in apps):
+                return cat
+        return self.config.current_category
+
     # ------------------------------------------------------------
     # 应用操作
     # ------------------------------------------------------------
@@ -49,7 +66,7 @@ class AppOpsMixin:
 
     def _move_app_to_category(self, app_data: dict, category: str):
         """移动应用到其他分类"""
-        cur = self.config.current_category
+        cur = self._category_of(app_data)
         if category == cur:
             return
         self.config.remove_app(cur, app_data)
@@ -61,7 +78,7 @@ class AppOpsMixin:
 
     def _move_app_to_folder(self, app_data: dict, folder: dict):
         """移动应用到文件夹"""
-        cur = self.config.current_category
+        cur = self._category_of(app_data)
         self.config.remove_app(cur, app_data)
         folder.setdefault("apps", []).append(app_data)
         self.config.save()
@@ -71,13 +88,13 @@ class AppOpsMixin:
 
     def _create_folder_with_app(self, app_data: dict):
         """新建文件夹并移入应用"""
-        folders = self.config.get_folders(self.config.current_category)
+        cur = self._category_of(app_data)
+        folders = self.config.get_folders(cur)
         default = f"文件夹{len(folders) + 1}"
         name, ok = QInputDialog.getText(self, "新建文件夹", "文件夹名称:", text=default)
         if not ok or not name.strip():
             return
         folder = {"type": "folder", "name": name.strip(), "apps": []}
-        cur = self.config.current_category
         self.config.remove_app(cur, app_data)
         folder["apps"].append(app_data)
         self.config.app_config.setdefault(cur, []).append(folder)
@@ -93,7 +110,7 @@ class AppOpsMixin:
             return
         app_data["icon_path"] = path
         self.config.save()
-        self._card_cache.pop(self.config.current_category, None)
+        self._card_cache.pop(self._category_of(app_data), None)
         self._refresh_grid()
         self.show_message("图标已更换")
 
@@ -104,7 +121,7 @@ class AppOpsMixin:
             return
         app_data["name"] = name.strip()
         self.config.save()
-        self._card_cache.pop(self.config.current_category, None)
+        self._card_cache.pop(self._category_of(app_data), None)
         self._refresh_grid()
         self.show_message("已重命名")
 
@@ -117,9 +134,9 @@ class AppOpsMixin:
         )
         if ret != QMessageBox.Yes:
             return
-        self.config.remove_app(self.config.current_category, app_data)
+        self.config.remove_app(self._category_of(app_data), app_data)
         self.config.save()
-        self._card_cache.pop(self.config.current_category, None)
+        self._card_cache.pop(self._category_of(app_data), None)
         self._refresh_grid()
         self.show_message("已删除")
 
@@ -202,7 +219,7 @@ class AppOpsMixin:
             return
         app_data["name"] = name.strip()
         self.config.save()
-        self._card_cache.pop(self.config.current_category, None)
+        self._card_cache.pop(self._category_of(app_data), None)
         self._refresh_grid()
         self.show_message("文件夹已重命名")
 
@@ -215,7 +232,7 @@ class AppOpsMixin:
         )
         if ret != QMessageBox.Yes:
             return
-        cat = self.config.current_category
+        cat = self._category_of(app_data)
         apps = self.config.app_config.get(cat, [])
         if app_data in apps:
             apps.remove(app_data)

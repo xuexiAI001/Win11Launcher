@@ -59,7 +59,7 @@ class CardActionsMixin:
             "launch_admin": self._launch_as_admin,
             "categories": self.config.categories,
             "move_category": self._move_app_to_category,
-            "folders": self.config.get_folders(self.config.current_category),
+            "folders": self.config.get_folders(self._category_of(app_data)),
             "move_to_folder": self._move_app_to_folder,
             "create_folder": self._create_folder_with_app,
             "in_folder": False,

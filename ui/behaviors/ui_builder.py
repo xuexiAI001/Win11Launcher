@@ -157,6 +157,9 @@ class UiBuilderMixin:
         self._tabs_layout.insertWidget(idx, new_outer)
         self._tabs_outer = new_outer
         self._update_tab_styles()
+        # 分类增删后同步搜索栏的「分类收窄」下拉
+        if hasattr(self, "_refresh_search_categories"):
+            self._refresh_search_categories()
         self._refresh_grid()
 
     def _update_tab_styles(self):
