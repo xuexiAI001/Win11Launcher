@@ -6,9 +6,9 @@
 ```
 联网 Windows 机器                麒麟机器（离线）
 ─────────────────────           ─────────────────────
-prepare_wheelhouse.py    ──USB──▶  build_on_kylin.sh ──▶ dist-linux/Win11Launcher/
+prepare_wheelhouse.py    ──USB──▶  build_on_kylin.sh ──▶ packaging/kylin/out/dist-linux/Win11Launcher/
 （下载两架构 wheelhouse）                    │
-                                            └──▶ make_deb.sh ──▶ win11launcher_1.1.0_amd64.deb
+                                            └──▶ make_deb.sh ──▶ packaging/kylin/out/win11launcher_1.1.0_amd64.deb
                                                                           │
                                                               sudo dpkg -i ──▶ 桌面菜单可用
 ```
@@ -71,13 +71,13 @@ bash packaging/kylin/build_on_kylin.sh
 （缺 ensurepip 时自动用 tools/ 的 pip wheel 经 zipimport 离线引导，无需 apt/root）→
 离线装依赖（`--no-index`）→ 导入冒烟 → PyInstaller 打包 → 产物校验 → 无头冒烟运行。
 
-成功后产物在 `dist-linux/Win11Launcher/`，可直接双击 `Win11Launcher` 运行。
+成功后产物在 `packaging/kylin/out/dist-linux/Win11Launcher/`，可直接双击 `Win11Launcher` 运行。
 
 ### 第 3 步：打包并安装 .deb
 
 ```bash
 bash packaging/kylin/make_deb.sh
-sudo dpkg -i packaging/kylin/win11launcher_*.deb
+sudo dpkg -i packaging/kylin/out/win11launcher_*.deb
 ```
 
 安装后：桌面菜单搜索"Win11Launcher"即可启动；命令行可输入 `win11launcher`。
@@ -96,6 +96,7 @@ sudo dpkg -i packaging/kylin/win11launcher_*.deb
 | `make_deb.sh` | 把构建产物打成 `.deb`（/opt 安装 + 桌面入口 + hicolor 图标） |
 | `win11launcher.desktop` | 桌面菜单入口文件 |
 | `tools/` | 离线引导物料：`pip` wheel（ensurepip 缺失时挂 PYTHONPATH 经 zipimport 引导，**需随项目一起拷贝**） |
+| `out/` | 构建产物统一收纳处（**只生成于麒麟机**）：`out/dist-linux/`、`out/build-linux-work/`、`out/deb/`、`out/*.deb`，**不入 git** |
 | `wheelhouse/` | （运行 prepare 后生成）离线安装源，**不入 git** |
 | `.venv-build/` | （运行 build 后生成）构建用虚拟环境，**不入 git** |
 

@@ -6,7 +6,7 @@
 #      （含 packaging/kylin/wheelhouse）拷贝到本机。
 #
 # 用法：bash packaging/kylin/build_on_kylin.sh
-# 产物：dist-linux/Win11Launcher/（PyInstaller onedir，可直接运行）
+# 产物：packaging/kylin/out/dist-linux/Win11Launcher/（PyInstaller onedir，可直接运行）
 #      之后可执行 bash packaging/kylin/make_deb.sh 打包 .deb
 #
 # 说明：构建全程离线（--no-index），依赖来自 wheelhouse；
@@ -31,8 +31,8 @@ esac
 WHEELHOUSE="$PROJECT_ROOT/packaging/kylin/wheelhouse/$ARCH"
 REQS="$PROJECT_ROOT/packaging/kylin/requirements-linux.txt"
 VENV="$PROJECT_ROOT/packaging/kylin/.venv-build"
-DIST="$PROJECT_ROOT/dist-linux"
-WORK="$PROJECT_ROOT/build-linux-work"
+DIST="$SCRIPT_DIR/out/dist-linux"
+WORK="$SCRIPT_DIR/out/build-linux-work"
 SPEC="$SCRIPT_DIR/win11launcher.spec"
 
 echo "==> 项目目录：$PROJECT_ROOT"
@@ -202,6 +202,6 @@ cat <<EOF
 
 打包 .deb（安装到 /opt + 桌面菜单入口）：
     bash packaging/kylin/make_deb.sh
-    sudo dpkg -i $(ls "$PROJECT_ROOT"/packaging/kylin/*.deb 2>/dev/null | head -1 || echo 'packaging/kylin/win11launcher_*.deb')
+    sudo dpkg -i $(ls "$SCRIPT_DIR"/out/*.deb 2>/dev/null | head -1 || echo 'packaging/kylin/out/win11launcher_*.deb')
 ============================================================
 EOF

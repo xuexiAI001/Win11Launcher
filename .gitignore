@@ -12,13 +12,12 @@ dist_new/
 *.egg-info/
 *.zip
 
-# 麒麟离线构建产物（packaging/kylin/README.md）
-dist-linux/
-build-linux-work/
-build/deb/
+# 麒麟离线构建产物（统一收拢到 packaging/kylin/out/，根目录不再散落）
+packaging/kylin/out/*
+!packaging/kylin/out/.gitkeep
+# 以下为构建过程生成的目录，不入 git
 packaging/kylin/wheelhouse/
 packaging/kylin/.venv-build/
-packaging/kylin/*.deb
 
 # 图标缓存（运行时生成）
 icon_cache/

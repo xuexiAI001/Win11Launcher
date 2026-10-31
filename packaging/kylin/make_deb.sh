@@ -2,9 +2,9 @@
 # ============================================================
 # Win11Launcher 麒麟 .deb 打包脚本
 #
-# 前置：已执行 build_on_kylin.sh 生成 dist-linux/Win11Launcher/
-# 产物：packaging/kylin/win11launcher_<版本>_<架构>.deb
-# 安装：sudo dpkg -i packaging/kylin/win11launcher_*.deb
+# 前置：已执行 build_on_kylin.sh 生成 packaging/kylin/out/dist-linux/Win11Launcher/
+# 产物：packaging/kylin/out/win11launcher_<版本>_<架构>.deb
+# 安装：sudo dpkg -i packaging/kylin/out/win11launcher_*.deb
 #
 # 安装布局：
 #   /opt/win11launcher/                     程序本体（PyInstaller onedir）
@@ -16,7 +16,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-DIST="$PROJECT_ROOT/dist-linux/Win11Launcher"
+DIST="$SCRIPT_DIR/out/dist-linux/Win11Launcher"
 
 if [ ! -x "$DIST/Win11Launcher" ]; then
     echo "错误：找不到 $DIST/Win11Launcher"
@@ -45,7 +45,7 @@ fi
 echo "==> 架构：$DPKG_ARCH"
 
 # ---------- 组装 deb 目录树 ----------
-PKGDIR="$PROJECT_ROOT/build/deb/win11launcher_${VERSION}_${DPKG_ARCH}"
+PKGDIR="$SCRIPT_DIR/out/deb/win11launcher_${VERSION}_${DPKG_ARCH}"
 rm -rf "$PKGDIR"
 mkdir -p "$PKGDIR/DEBIAN" \
          "$PKGDIR/opt/win11launcher" \
@@ -98,7 +98,7 @@ EOF
 chmod 755 "$PKGDIR/DEBIAN/postinst"
 
 # ---------- 打包 ----------
-OUT="$PROJECT_ROOT/packaging/kylin/win11launcher_${VERSION}_${DPKG_ARCH}.deb"
+OUT="$SCRIPT_DIR/out/win11launcher_${VERSION}_${DPKG_ARCH}.deb"
 rm -f "$OUT"
 if dpkg-deb --help 2>&1 | grep -q -- "--root-owner-group"; then
     # dpkg >= 1.19：文件属主统一为 root:root，不受构建用户影响

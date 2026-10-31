@@ -1,0 +1,7 @@
+# 本目录用于统一收纳麒麟离线构建产物（build_on_kylin.sh / make_deb.sh 输出）：
+#   out/dist-linux/         PyInstaller onedir 产物（可直接运行）
+#   out/build-linux-work/   PyInstaller 工作目录
+#   out/deb/               dpkg 打包暂存目录树
+#   out/win11launcher_*.deb 最终 .deb 安装包
+# 全部由 .gitignore 忽略，仅此占位文件入库，便于在仓库结构中一眼区分麒麟产物。
+# 与 Windows 构建产物（根目录 dist/ dist_new/ build/ build_new/）完全隔离。
